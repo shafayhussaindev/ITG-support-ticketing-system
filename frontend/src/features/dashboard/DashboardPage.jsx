@@ -1,301 +1,281 @@
-import { useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
+  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { authService } from '@/services/authService';
+import { formatMinutes, reportingKeys, reportingService } from '@/services/reportingService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge, Card, CardBody, CardHeader, ErrorState, Skeleton } from '@/components/ui';
 import s from './DashboardPage.module.css';
 
-const CATEGORY_COLORS = [
-  'var(--c-primary)',
-  'var(--c-info)',
-  'var(--c-success)',
-  'var(--c-warning)',
-  'var(--c-priority-critical)',
-  'var(--c-priority-low)',
-  'var(--c-primary-hover)',
-];
+const PRIORITY_COLOR = {
+  Critical: 'var(--c-priority-critical)',
+  High: 'var(--c-priority-high)',
+  Medium: 'var(--c-priority-medium)',
+  Low: 'var(--c-priority-low)',
+};
 
-/*
-  This dashboard shows only data the API actually returns today: identity, roles,
-  effective permissions and team membership. It deliberately does not display
-  ticket counts, SLA compliance or CSAT — those endpoints do not exist yet, and
-  showing invented numbers would make an unfinished system look finished.
-*/
+const SCOPE_LABEL = {
+  Own: 'your own tickets',
+  Assigned: 'tickets assigned to you',
+  Team: 'your teams',
+  Department: 'your department',
+  Organization: 'your organization',
+  All: 'every organization',
+};
+
+const chartAxis = { fill: 'var(--c-text-3)', fontSize: 11 };
+
+const tooltipStyle = {
+  background: 'var(--c-surface)',
+  border: '1px solid var(--c-border)',
+  borderRadius: 6,
+  fontSize: 12,
+  color: 'var(--c-text)',
+};
+
+function Kpi({ label, value, hint, tone, onClick }) {
+  const clickable = typeof onClick === 'function';
+
+  return (
+    <Card className={s.kpiCard}>
+      <CardBody className={s.kpiBody}>
+        {clickable ? (
+          <button type="button" className={s.kpiButton} onClick={onClick}>
+            <span className={`${s.kpiValue} ${tone ? s[tone] : ''}`}>{value}</span>
+            <span className={s.kpiLabel}>{label}</span>
+          </button>
+        ) : (
+          <>
+            <span className={`${s.kpiValue} ${tone ? s[tone] : ''}`}>{value}</span>
+            <span className={s.kpiLabel}>{label}</span>
+          </>
+        )}
+        {hint ? <span className={s.kpiHint}>{hint}</span> : null}
+      </CardBody>
+    </Card>
+  );
+}
+
+/** Horizontal bars, which read better than a pie for comparing category magnitudes. */
+function SegmentChart({ data, onSelect, colorFor }) {
+  if (data.length === 0) {
+    return <p className={s.empty}>Nothing open in this view.</p>;
+  }
+
+  return (
+    <div className={s.chart}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
+          <CartesianGrid horizontal={false} stroke="var(--c-border)" />
+          <XAxis type="number" allowDecimals={false} tick={chartAxis} stroke="var(--c-border-strong)" />
+          <YAxis type="category" dataKey="label" width={104} tick={chartAxis} stroke="var(--c-border-strong)" />
+          <Tooltip cursor={{ fill: 'var(--c-surface-3)' }} contentStyle={tooltipStyle} />
+          <Bar dataKey="count" radius={[0, 3, 3, 0]} barSize={16} cursor="pointer">
+            {data.map((entry) => (
+              <Cell
+                key={entry.label}
+                fill={colorFor(entry.label) ?? 'var(--c-primary)'}
+                onClick={() => onSelect(entry.drillDownQuery)}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export function DashboardPage() {
-  const { user: cachedUser } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [days, setDays] = useState(30);
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['auth', 'me'],
-    queryFn: authService.me,
-    // The cached copy from sign-in renders instantly while the fresh copy loads.
-    placeholderData: cachedUser,
-    staleTime: 60_000,
+  const { data, isPending, isError, error, refetch } = useQuery({
+    queryKey: reportingKeys.dashboard(days),
+    queryFn: () => reportingService.dashboard(days),
+    refetchInterval: 120_000,
   });
 
-  const user = data ?? cachedUser;
-
-  const permissionsByCategory = useMemo(() => {
-    const groups = new Map();
-
-    for (const permission of user?.permissions ?? []) {
-      const [category] = permission.split('.');
-      if (!groups.has(category)) {
-        groups.set(category, []);
-      }
-      groups.get(category).push(permission);
-    }
-
-    return [...groups.entries()]
-      .map(([category, permissions]) => ({ category, permissions, count: permissions.length }))
-      .sort((a, b) => b.count - a.count);
-  }, [user?.permissions]);
-
-  if (isLoading && !user) {
+  if (isPending) {
     return (
-      <div className={s.grid}>
-        {[0, 1, 2].map((i) => (
-          <Card key={i}>
-            <CardBody>
-              <Skeleton height={18} width="45%" />
-              <div style={{ marginTop: 14, display: 'grid', gap: 9 }}>
-                <Skeleton height={12} />
-                <Skeleton height={12} width="80%" />
-                <Skeleton height={12} width="60%" />
-              </div>
-            </CardBody>
-          </Card>
+      <div className={s.kpiGrid}>
+        {Array.from({ length: 8 }, (_, i) => (
+          <Card key={i}><CardBody><Skeleton height={46} /></CardBody></Card>
         ))}
       </div>
     );
   }
 
-  if (isError && !user) {
-    return <ErrorState error={error} onRetry={refetch} title="Could not load your dashboard" />;
+  if (isError) {
+    return <ErrorState error={error} onRetry={refetch} title="Could not load the dashboard" />;
+  }
+
+  const { kpis } = data;
+  const peakLoad = Math.max(1, ...data.agentWorkload.map((a) => a.weightedScore));
+
+  /** Sends a chart click to the ticket list using the same filter the segment counted. */
+  function drill(query) {
+    if (query) {
+      navigate(`/tickets?${query}`);
+    }
   }
 
   return (
     <>
       <header className={s.header}>
         <div>
-          <h2 className={s.greeting}>Good day, {user?.fullName?.split(' ')[0]}</h2>
-          <p className={s.subline}>
-            {user?.jobTitle ? `${user.jobTitle} · ` : ''}
-            {user?.organizationName}
-            {user?.departmentName ? ` · ${user.departmentName}` : ''}
+          <h2 className={s.title}>Good day, {user?.fullName?.split(' ')[0]}</h2>
+          <p className={s.subtitle}>
+            Figures cover <strong>{SCOPE_LABEL[data.scope] ?? 'the tickets you can see'}</strong>,
+            over the last {days} days.
           </p>
         </div>
 
-        <div className={s.roleRow}>
-          {user?.roles?.map((role) => (
-            <Badge key={role} tone="primary" dot>
-              {role}
-            </Badge>
-          ))}
-        </div>
+        <label className={s.rangeLabel}>
+          <span className="sr-only">Reporting period</span>
+          <select
+            className={s.range}
+            value={days}
+            onChange={(event) => setDays(Number(event.target.value))}
+          >
+            <option value={7}>Last 7 days</option>
+            <option value={30}>Last 30 days</option>
+            <option value={90}>Last 90 days</option>
+          </select>
+        </label>
       </header>
 
-      <div className={s.grid}>
-        <Card>
-          <CardHeader title="Your account" subtitle="Straight from the API, not cached locally" />
+      <div className={s.kpiGrid}>
+        <Kpi label="Open" value={kpis.totalOpen} onClick={() => drill('openOnly=true')} />
+        <Kpi label="New today" value={kpis.newToday} />
+        <Kpi label="Critical" value={kpis.criticalOpen}
+             tone={kpis.criticalOpen > 0 ? 'danger' : undefined}
+             onClick={() => drill('priority=Critical&openOnly=true')} />
+        <Kpi label="Unassigned" value={kpis.unassigned}
+             tone={kpis.unassigned > 0 ? 'warning' : undefined}
+             onClick={() => drill('unassigned=true&openOnly=true')} />
+        <Kpi label="SLA breached" value={kpis.breached}
+             tone={kpis.breached > 0 ? 'danger' : 'success'} />
+        <Kpi label="SLA compliance"
+             value={kpis.slaCompliancePercent === null ? '—' : `${kpis.slaCompliancePercent}%`}
+             hint={kpis.slaCompliancePercent === null ? 'No clock has settled yet' : undefined} />
+        <Kpi label="Avg first response" value={formatMinutes(kpis.averageFirstResponseMinutes)} />
+        <Kpi label="Avg resolution" value={formatMinutes(kpis.averageResolutionMinutes)} />
+        <Kpi label="Resolved today" value={kpis.resolvedToday} tone="success" />
+        <Kpi label="Reopened" value={kpis.reopenedCount}
+             tone={kpis.reopenedCount > 0 ? 'warning' : undefined} />
+        <Kpi label="Satisfaction"
+             value={kpis.averageSatisfaction === null ? '—' : `${kpis.averageSatisfaction} / 5`}
+             hint={kpis.satisfactionResponses === 0
+               ? 'Nobody has rated yet'
+               : `${kpis.satisfactionResponses} response${kpis.satisfactionResponses === 1 ? '' : 's'}`} />
+        <Kpi label="Approaching breach" value={kpis.approachingBreach}
+             tone={kpis.approachingBreach > 0 ? 'warning' : undefined} />
+      </div>
+
+      <div className={s.chartGrid}>
+        <Card className={s.wide}>
+          <CardHeader title="Volume" subtitle="Raised against resolved, by day" />
           <CardBody>
-            <dl className={s.dl}>
-              <dt className={s.dt}>Name</dt>
-              <dd className={s.dd}>{user?.fullName}</dd>
-
-              <dt className={s.dt}>Email</dt>
-              <dd className={s.dd}>{user?.email}</dd>
-
-              <dt className={s.dt}>Organization</dt>
-              <dd className={s.dd}>{user?.organizationName}</dd>
-
-              <dt className={s.dt}>Department</dt>
-              <dd className={s.dd}>{user?.departmentName ?? '—'}</dd>
-
-              <dt className={s.dt}>Office</dt>
-              <dd className={s.dd}>{user?.officeName ?? '—'}</dd>
-
-              <dt className={s.dt}>Time zone</dt>
-              <dd className={s.dd}>{user?.timeZoneId}</dd>
-
-              <dt className={s.dt}>Two-factor</dt>
-              <dd className={s.dd}>
-                {user?.twoFactorEnabled ? (
-                  <Badge tone="success">Enabled</Badge>
-                ) : (
-                  <Badge tone="neutral">Not enabled</Badge>
-                )}
-              </dd>
-            </dl>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Teams"
-            subtitle={
-              user?.teams?.length
-                ? `${user.teams.length} membership${user.teams.length === 1 ? '' : 's'}`
-                : 'No team memberships'
-            }
-          />
-          <CardBody>
-            {user?.teams?.length ? (
-              user.teams.map((team) => (
-                <div key={team.teamId} className={s.teamRow}>
-                  <span>{team.teamName}</span>
-                  <Badge tone={team.roleInTeam === 'Lead' ? 'warning' : 'neutral'}>
-                    {team.roleInTeam}
-                  </Badge>
-                </div>
-              ))
-            ) : (
-              <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--c-text-2)' }}>
-                You are not a member of any support team. Requesters do not need one.
-              </p>
-            )}
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Access at a glance"
-            subtitle={`${user?.permissions?.length ?? 0} effective permissions`}
-          />
-          <CardBody>
-            <div className={s.chartWrap}>
+            <div className={s.chart}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={permissionsByCategory}
-                  layout="vertical"
-                  margin={{ top: 4, right: 16, bottom: 4, left: 8 }}
-                >
-                  <CartesianGrid horizontal={false} stroke="var(--c-border)" />
+                <LineChart data={data.volumeByDay} margin={{ top: 6, right: 12, bottom: 4, left: -18 }}>
+                  <CartesianGrid stroke="var(--c-border)" vertical={false} />
                   <XAxis
-                    type="number"
-                    allowDecimals={false}
-                    tick={{ fill: 'var(--c-text-3)', fontSize: 11 }}
+                    dataKey="date"
+                    tick={chartAxis}
                     stroke="var(--c-border-strong)"
+                    tickFormatter={(value) =>
+                      new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                    minTickGap={28}
                   />
-                  <YAxis
-                    type="category"
-                    dataKey="category"
-                    width={92}
-                    tick={{ fill: 'var(--c-text-2)', fontSize: 11 }}
-                    stroke="var(--c-border-strong)"
-                  />
+                  <YAxis tick={chartAxis} stroke="var(--c-border-strong)" allowDecimals={false} />
                   <Tooltip
-                    cursor={{ fill: 'var(--c-surface-3)' }}
-                    contentStyle={{
-                      background: 'var(--c-surface)',
-                      border: '1px solid var(--c-border)',
-                      borderRadius: 6,
-                      fontSize: 12,
-                      color: 'var(--c-text)',
-                    }}
-                    formatter={(value) => [`${value} permissions`, '']}
+                    contentStyle={tooltipStyle}
+                    labelFormatter={(value) => new Date(value).toLocaleDateString()}
                   />
-                  <Bar dataKey="count" radius={[0, 3, 3, 0]} barSize={14}>
-                    {permissionsByCategory.map((entry, index) => (
-                      <Cell key={entry.category} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Line type="monotone" dataKey="raised" name="Raised"
+                        stroke="var(--c-info)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="resolved" name="Resolved"
+                        stroke="var(--c-success)" strokeWidth={2} dot={false} />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </CardBody>
         </Card>
 
-        <Card className={s.wide}>
-          <CardHeader
-            title="What you are permitted to do"
-            subtitle="The backend re-checks every one of these on every request"
-          />
+        <Card>
+          <CardHeader title="Open by priority" subtitle="Click a bar to see those tickets" />
           <CardBody>
-            {permissionsByCategory.map((group) => (
-              <div key={group.category} className={s.permGroup}>
-                <div className={s.permGroupHead}>
-                  <span className={s.permGroupName}>{group.category.replace('_', ' ')}</span>
-                  <Badge tone="neutral">{group.count}</Badge>
-                </div>
-                <div className={s.permList}>
-                  {group.permissions.map((permission) => (
-                    <span key={permission} className={s.perm}>
-                      {permission}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <SegmentChart data={data.byPriority} onSelect={drill} colorFor={(l) => PRIORITY_COLOR[l]} />
           </CardBody>
         </Card>
 
-        <Card className={s.wide}>
-          <CardHeader
-            title="Not built yet"
-            subtitle="Listed so nothing here is mistaken for a defect"
-          />
+        <Card>
+          <CardHeader title="Open by status" subtitle="Click a bar to see those tickets" />
           <CardBody>
-            <div className={s.roadmap}>
-              {ROADMAP.map((phase) => (
-                <div key={phase.name} className={s.phase}>
-                  <div className={s.phaseHead}>
-                    <span className={s.phaseName}>{phase.name}</span>
-                    <Badge tone={phase.tone}>{phase.status}</Badge>
-                  </div>
-                  <ul className={s.phaseItems}>
-                    {phase.items.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+            <SegmentChart data={data.byStatus} onSelect={drill} colorFor={() => 'var(--c-primary)'} />
           </CardBody>
         </Card>
+
+        <Card>
+          <CardHeader title="Open by category" />
+          <CardBody>
+            <SegmentChart data={data.byCategory} onSelect={drill} colorFor={() => 'var(--c-info)'} />
+          </CardBody>
+        </Card>
+
+        {data.agentWorkload.length > 0 ? (
+          <Card className={s.wide}>
+            <CardHeader
+              title="Agent workload"
+              subtitle="Weighted by priority, because ten questions are not ten outages"
+            />
+            <CardBody>
+              <div className={s.tableWrap}>
+                <table className={s.table}>
+                  <thead>
+                    <tr>
+                      <th scope="col">Agent</th>
+                      <th scope="col">Open</th>
+                      <th scope="col">Critical</th>
+                      <th scope="col">Breached</th>
+                      <th scope="col">Weighted load</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.agentWorkload.map((agent) => (
+                      <tr key={agent.agentId}>
+                        <td>{agent.agentName}</td>
+                        <td>{agent.openTickets}</td>
+                        <td>{agent.criticalTickets > 0
+                          ? <Badge tone="danger">{agent.criticalTickets}</Badge> : '—'}</td>
+                        <td>{agent.breachedTickets > 0
+                          ? <Badge tone="danger">{agent.breachedTickets}</Badge> : '—'}</td>
+                        <td>
+                          <div className={s.loadRow}>
+                            <div className={s.loadBar}>
+                              <span
+                                className={s.loadFill}
+                                style={{ width: `${(agent.weightedScore / peakLoad) * 100}%` }}
+                              />
+                            </div>
+                            <span className={s.loadValue}>{agent.weightedScore}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardBody>
+          </Card>
+        ) : null}
       </div>
     </>
   );
 }
-
-const ROADMAP = [
-  {
-    name: 'Phase 1',
-    status: 'Done',
-    tone: 'success',
-    items: ['Authentication', 'Organizations and users', 'Roles and permissions', 'Teams and master data'],
-  },
-  {
-    name: 'Phase 2',
-    status: 'Next',
-    tone: 'warning',
-    items: ['Ticket creation', 'Assignment and lifecycle', 'Comments and attachments', 'Audit trail'],
-  },
-  {
-    name: 'Phase 3',
-    status: 'Planned',
-    tone: 'neutral',
-    items: ['SLA engine', 'Business calendars', 'Escalations', 'Notifications and SignalR'],
-  },
-  {
-    name: 'Phase 4',
-    status: 'Planned',
-    tone: 'neutral',
-    items: ['Dashboards', 'Reporting', 'Knowledge base', 'Satisfaction ratings'],
-  },
-  {
-    name: 'Phase 5',
-    status: 'Planned',
-    tone: 'neutral',
-    items: ['ERP record links', 'Email intake', 'AI assistance'],
-  },
-];

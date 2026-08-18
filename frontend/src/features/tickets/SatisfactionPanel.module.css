@@ -1,0 +1,87 @@
+.form { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.legend {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-text-2);
+  float: left;
+  padding: 0;
+  margin-right: var(--s-2);
+}
+
+.stars { display: inline-flex; gap: 2px; }
+
+.starLabel {
+  position: relative;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* The input stays in the accessibility tree and remains focusable; only its default
+   appearance is hidden behind the star. */
+.starInput {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.starInput:focus-visible + span {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.starOn { color: var(--c-warning); font-size: 22px; }
+.starOff { color: var(--c-border-strong); font-size: 22px; }
+
+.word {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-text-2);
+}
+
+.commentLabel {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-text-2);
+}
+
+.textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.comment {
+  margin-top: var(--s-3);
+  font-size: var(--fs-sm);
+  color: var(--c-text-2);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}

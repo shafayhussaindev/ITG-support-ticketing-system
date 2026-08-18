@@ -6,6 +6,8 @@ using SupportTicketing.Domain.Identity;
 using SupportTicketing.Domain.Organizations;
 using SupportTicketing.Domain.Teams;
 using SupportTicketing.Domain.Escalations;
+using SupportTicketing.Domain.Feedback;
+using SupportTicketing.Domain.Knowledge;
 using SupportTicketing.Domain.Notifications;
 using SupportTicketing.Domain.Sla;
 using SupportTicketing.Domain.Tickets;
@@ -75,6 +77,11 @@ public interface IAppDbContext
     DbSet<Notification> Notifications { get; }
     DbSet<NotificationDelivery> NotificationDeliveries { get; }
     DbSet<NotificationPreference> NotificationPreferences { get; }
+
+    DbSet<KnowledgeArticle> KnowledgeArticles { get; }
+    DbSet<KnowledgeArticleVersion> KnowledgeArticleVersions { get; }
+    DbSet<KnowledgeFeedback> KnowledgeFeedback { get; }
+    DbSet<SatisfactionRating> SatisfactionRatings { get; }
 
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<SystemSetting> SystemSettings { get; }

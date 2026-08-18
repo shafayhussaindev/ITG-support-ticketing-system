@@ -4,148 +4,161 @@
   justify-content: space-between;
   gap: var(--s-4);
   flex-wrap: wrap;
-  margin-bottom: var(--s-5);
+  margin-bottom: var(--s-4);
 }
 
-.greeting {
-  font-size: var(--fs-2xl);
-  font-weight: 700;
-}
+.title { font-size: var(--fs-2xl); font-weight: 700; }
 
-.subline {
-  margin-top: var(--s-1);
+.subtitle {
+  margin-top: 2px;
   font-size: var(--fs-sm);
   color: var(--c-text-2);
 }
 
-.roleRow {
-  display: flex;
-  gap: var(--s-2);
-  flex-wrap: wrap;
+.rangeLabel { display: inline-flex; }
+
+.range {
+  padding: 7px 10px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
 }
 
-.grid {
+/* Dense on purpose: a support desk reads these at a glance, so more fit per screen
+   matters more than generous whitespace. */
+.kpiGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.kpiCard { min-width: 0; }
+
+.kpiBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3);
+}
+
+.kpiButton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--r-sm);
+}
+
+.kpiButton:hover .kpiValue { color: var(--c-primary-text); }
+.kpiButton:hover .kpiLabel { text-decoration: underline; }
+
+.kpiValue {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--c-text);
+}
+
+.danger { color: var(--c-danger-text); }
+.warning { color: var(--c-warning-text); }
+.success { color: var(--c-success-text); }
+
+.kpiLabel {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--c-text-3);
+}
+
+.kpiHint {
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: var(--s-4);
   align-items: start;
 }
 
 .wide { grid-column: 1 / -1; }
 
-.dl {
-  display: grid;
-  grid-template-columns: minmax(110px, auto) 1fr;
-  gap: var(--s-2) var(--s-4);
-  margin: 0;
-  font-size: var(--fs-sm);
-}
-
-.dt {
-  color: var(--c-text-3);
-  font-weight: 600;
-}
-
-.dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.mono {
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-}
-
-.permGroup {
-  border-top: 1px solid var(--c-border);
-  padding-top: var(--s-3);
-  margin-top: var(--s-3);
-}
-
-.permGroup:first-child {
-  border-top: none;
-  padding-top: 0;
-  margin-top: 0;
-}
-
-.permGroupHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s-2);
-  margin-bottom: var(--s-2);
-}
-
-.permGroupName {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.permList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.perm {
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  padding: 2px 6px;
-  border-radius: var(--r-sm);
-  background: var(--c-surface-3);
-  color: var(--c-text-2);
-}
-
-.chartWrap {
+.chart {
   width: 100%;
   height: 260px;
 }
 
-.teamRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-  padding: var(--s-2) 0;
+.empty {
+  padding: var(--s-5) 0;
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--c-text-3);
+}
+
+.tableWrap { overflow-x: auto; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.table thead th {
+  text-align: left;
+  padding: var(--s-2);
   border-bottom: 1px solid var(--c-border);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--c-text-3);
+  white-space: nowrap;
 }
 
-.teamRow:last-child { border-bottom: none; }
-
-.roadmap {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--s-3);
+.table td {
+  padding: var(--s-2);
+  border-bottom: 1px solid var(--c-border);
+  vertical-align: middle;
 }
 
-.phase {
-  padding: var(--s-3);
-  border: 1px solid var(--c-border);
-  border-radius: var(--r-md);
-  background: var(--c-surface-2);
-}
+.table tr:last-child td { border-bottom: none; }
 
-.phaseHead {
+.loadRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--s-2);
-  margin-bottom: var(--s-2);
+  min-width: 140px;
 }
 
-.phaseName {
-  font-size: var(--fs-sm);
-  font-weight: 600;
+.loadBar {
+  flex: 1;
+  height: 7px;
+  border-radius: var(--r-full);
+  background: var(--c-surface-3);
+  overflow: hidden;
 }
 
-.phaseItems {
-  margin: 0;
-  padding-left: var(--s-4);
+.loadFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-full);
+  background: var(--c-primary);
+}
+
+.loadValue {
   font-size: var(--fs-xs);
+  font-weight: 700;
   color: var(--c-text-2);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  min-width: 22px;
+  text-align: right;
 }

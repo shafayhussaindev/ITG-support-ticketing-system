@@ -10,6 +10,8 @@ using SupportTicketing.Domain.Identity;
 using SupportTicketing.Domain.Organizations;
 using SupportTicketing.Domain.Teams;
 using SupportTicketing.Domain.Escalations;
+using SupportTicketing.Domain.Feedback;
+using SupportTicketing.Domain.Knowledge;
 using SupportTicketing.Domain.Notifications;
 using SupportTicketing.Domain.Sla;
 using SupportTicketing.Domain.Tickets;
@@ -95,6 +97,11 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+
+    public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();
+    public DbSet<KnowledgeArticleVersion> KnowledgeArticleVersions => Set<KnowledgeArticleVersion>();
+    public DbSet<KnowledgeFeedback> KnowledgeFeedback => Set<KnowledgeFeedback>();
+    public DbSet<SatisfactionRating> SatisfactionRatings => Set<SatisfactionRating>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();

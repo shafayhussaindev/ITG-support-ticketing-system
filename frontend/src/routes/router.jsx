@@ -34,6 +34,14 @@ const EscalationsPage = lazy(() =>
   import('@/features/escalations/EscalationsPage').then((m) => ({ default: m.EscalationsPage })),
 );
 
+const KnowledgePage = lazy(() =>
+  import('@/features/knowledge/KnowledgePage').then((m) => ({ default: m.KnowledgePage })),
+);
+
+const ArticlePage = lazy(() =>
+  import('@/features/knowledge/ArticlePage').then((m) => ({ default: m.ArticlePage })),
+);
+
 function lazyRoute(element) {
   return <Suspense fallback={<LoadingState label="Loading" />}>{element}</Suspense>;
 }
@@ -52,15 +60,6 @@ const planned = [
     description:
       'KPI cards and charts for volume, SLA compliance, response and resolution times, backlog, agent workload and CSAT, each drilling through to the underlying ticket list.',
     endpoints: ['GET /api/v1/reports/dashboard', 'POST /api/v1/reports/export'],
-  },
-  {
-    path: 'knowledge',
-    permission: 'knowledge.view',
-    title: 'Knowledge base',
-    phase: 'Phase 4',
-    description:
-      'Articles with draft, review, published and archived states, version history, and suggestions offered while a requester types a ticket.',
-    endpoints: ['GET /api/v1/knowledge/articles', 'GET /api/v1/knowledge/search'],
   },
   {
     path: 'audit',
@@ -156,6 +155,18 @@ export const router = createBrowserRouter([
         path: 'escalations',
         element: (
           <ProtectedRoute permission="escalation.view">{lazyRoute(<EscalationsPage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'knowledge',
+        element: (
+          <ProtectedRoute permission="knowledge.view">{lazyRoute(<KnowledgePage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'knowledge/:id',
+        element: (
+          <ProtectedRoute permission="knowledge.view">{lazyRoute(<ArticlePage />)}</ProtectedRoute>
         ),
       },
       {

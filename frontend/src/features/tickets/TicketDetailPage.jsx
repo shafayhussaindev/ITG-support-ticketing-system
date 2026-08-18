@@ -13,6 +13,7 @@ import { PriorityBadge, StatusBadge, TypeBadge, humanizeStatus } from '@/compone
 import { formatDateTime, formatRelative } from '@/utils/datetime';
 import { Conversation } from './Conversation';
 import { SlaPanel } from './SlaPanel';
+import { SatisfactionPanel } from './SatisfactionPanel';
 import s from './TicketDetailPage.module.css';
 
 export function TicketDetailPage() {
@@ -207,6 +208,12 @@ export function TicketDetailPage() {
         </div>
 
         <aside className={s.side}>
+          <SatisfactionPanel
+            ticketId={id}
+            ticketStatus={ticket.status}
+            isRequester={isRequester}
+          />
+
           <SlaPanel ticketId={id} />
 
           <Card>

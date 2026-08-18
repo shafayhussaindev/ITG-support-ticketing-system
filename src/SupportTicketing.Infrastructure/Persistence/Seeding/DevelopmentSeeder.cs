@@ -8,6 +8,7 @@ using SupportTicketing.Domain.Catalog;
 using SupportTicketing.Domain.Enums;
 using SupportTicketing.Domain.Identity;
 using SupportTicketing.Domain.Escalations;
+using SupportTicketing.Domain.Knowledge;
 using SupportTicketing.Domain.Organizations;
 using SupportTicketing.Domain.Sla;
 using SupportTicketing.Domain.Teams;
@@ -375,6 +376,7 @@ public static class DevelopmentSeeder
         await db.SaveChangesAsync();
 
         await SeedSlaAsync(db, organization, itTeam.Id, now);
+        await SeedKnowledgeAsync(db, orgId, software.Id, access.Id, now);
     }
 
 
@@ -514,6 +516,144 @@ public static class DevelopmentSeeder
                 RecipientTeamId = recipient == EscalationRecipient.TeamLead ? defaultTeamId : null,
                 ChangeTicketStatus = changeStatus,
                 CreatedAtUtc = now,
+            });
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+
+    /// <summary>
+    /// Seeds a small knowledge base covering the lifecycle states and both visibility
+    /// levels, so the filtering rules can be exercised rather than assumed.
+    /// </summary>
+    private static async Task SeedKnowledgeAsync(
+        AppDbContext db, Guid orgId, Guid softwareCategoryId, Guid accessCategoryId, DateTime now)
+    {
+        // Ordered explicitly. An unordered FirstOrDefault picks whichever of the three
+        // seeded agents the database happens to return, so the draft's author varied
+        // between runs and any test asserting on it was quietly flaky.
+        var author = await db.Users
+            .Where(u => u.OrganizationId == orgId && u.JobTitle == RoleNames.SupportAgent)
+            .OrderBy(u => u.Email)
+            .FirstOrDefaultAsync();
+
+        if (author is null)
+        {
+            return;
+        }
+
+        var articles = new[]
+        {
+            new KnowledgeArticle
+            {
+                OrganizationId = orgId,
+                Title = "Reset your ERP password",
+                Slug = "reset-your-erp-password",
+                Summary = "Self-service steps to reset an ERP password before raising a ticket.",
+                Content = """
+                    1. Open the ERP sign-in page.
+                    2. Choose Forgotten password.
+                    3. Enter your work email and follow the emailed link.
+                    4. If no email arrives within ten minutes, check your junk folder, then raise a ticket.
+                    """,
+                CategoryId = accessCategoryId,
+                Status = ArticleStatus.Published,
+                Visibility = ArticleVisibility.Organization,
+                AuthorId = author.Id,
+                PublishedById = author.Id,
+                PublishedAtUtc = now,
+                Tags = "password,erp,access,login",
+                ViewCount = 42,
+                HelpfulCount = 12,
+                NotHelpfulCount = 1,
+                CreatedAtUtc = now,
+            },
+            new KnowledgeArticle
+            {
+                OrganizationId = orgId,
+                Title = "Printer shows offline after a power cut",
+                Slug = "printer-offline-after-power-cut",
+                Summary = "Clearing a stuck print spooler when a shared printer reports offline.",
+                Content = """
+                    The print spooler often fails to restart cleanly after a power interruption.
+
+                    1. Confirm the printer is powered on and shows a ready light.
+                    2. Restart the print spooler service on the print server.
+                    3. Clear any queued jobs, which will be stuck in a deleting state.
+                    4. Print a test page before telling the requester it is fixed.
+                    """,
+                CategoryId = softwareCategoryId,
+                Status = ArticleStatus.Published,
+                Visibility = ArticleVisibility.Organization,
+                AuthorId = author.Id,
+                PublishedById = author.Id,
+                PublishedAtUtc = now,
+                Tags = "printer,spooler,offline,hardware",
+                ViewCount = 18,
+                HelpfulCount = 5,
+                CreatedAtUtc = now,
+            },
+            new KnowledgeArticle
+            {
+                OrganizationId = orgId,
+                Title = "Escalation contacts for the payroll cut-off",
+                Slug = "escalation-contacts-payroll-cutoff",
+                Summary = "Who to contact, and when, if payroll processing is blocked on cut-off day.",
+                Content = """
+                    Staff only. Payroll cut-off is the one date where an ERP outage is a business
+                    emergency rather than an inconvenience.
+
+                    Escalate to the ERP team lead immediately, then to the finance director if it
+                    is still unresolved after thirty minutes.
+                    """,
+                CategoryId = softwareCategoryId,
+
+                // Internal on purpose. It names individuals and out-of-hours expectations,
+                // which is exactly the content a requester must never be shown, so it also
+                // serves as the fixture proving visibility filtering works.
+                Status = ArticleStatus.Published,
+                Visibility = ArticleVisibility.Internal,
+                AuthorId = author.Id,
+                PublishedById = author.Id,
+                PublishedAtUtc = now,
+                Tags = "payroll,escalation,internal",
+                ViewCount = 7,
+                CreatedAtUtc = now,
+            },
+            new KnowledgeArticle
+            {
+                OrganizationId = orgId,
+                Title = "Requesting a second monitor",
+                Slug = "requesting-a-second-monitor",
+                Summary = "Draft guidance on the hardware request process.",
+                Content = "Draft. Awaiting confirmation of the current approval threshold.",
+                CategoryId = softwareCategoryId,
+
+                // Left as a draft so the status filter has something to exclude.
+                Status = ArticleStatus.Draft,
+                Visibility = ArticleVisibility.Organization,
+                AuthorId = author.Id,
+                Tags = "hardware,monitor,request",
+                CreatedAtUtc = now,
+            },
+        };
+
+        foreach (var article in articles)
+        {
+            db.KnowledgeArticles.Add(article);
+
+            db.KnowledgeArticleVersions.Add(new KnowledgeArticleVersion
+            {
+                OrganizationId = orgId,
+                ArticleId = article.Id,
+                Version = 1,
+                Title = article.Title,
+                Summary = article.Summary,
+                Content = article.Content,
+                ChangedById = author.Id,
+                ChangedAtUtc = now,
+                ChangeNote = "Seeded.",
             });
         }
 

@@ -1,0 +1,140 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--s-4);
+  align-items: start;
+}
+
+.main {
+  min-width: 0;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  padding: var(--s-5);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.back {
+  border: none;
+  background: transparent;
+  color: var(--c-text-3);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  padding: 2px 4px 2px 0;
+}
+
+.back:hover { color: var(--c-text); }
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: var(--s-2) 0 var(--s-3);
+}
+
+.title {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  line-height: 1.25;
+  max-width: 60ch;
+}
+
+.summary {
+  margin-top: var(--s-2);
+  font-size: var(--fs-lg);
+  color: var(--c-text-2);
+  line-height: 1.5;
+  max-width: 68ch;
+}
+
+.byline {
+  margin-top: var(--s-2);
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+}
+
+/* Measure capped near 70 characters: long unbroken lines are markedly harder to
+   track back to the start of the next one. */
+.content {
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-border);
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 72ch;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--s-4);
+}
+
+.tag {
+  font-size: var(--fs-xs);
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  background: var(--c-surface-3);
+  color: var(--c-text-2);
+}
+
+.voteCard { margin-top: var(--s-5); }
+
+.voteRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.voteLabel {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.voteButtons { display: flex; gap: var(--s-2); }
+
+.actions { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.versions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.versions li { display: grid; gap: 1px; }
+
+.versionNo {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--c-primary-text);
+}
+
+.versionMeta {
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+}
+
+.versionNote {
+  font-size: var(--fs-xs);
+  color: var(--c-text-2);
+  line-height: 1.45;
+}
+
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 1fr; }
+}

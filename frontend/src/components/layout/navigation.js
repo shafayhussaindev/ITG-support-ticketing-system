@@ -44,7 +44,7 @@ export const navigation = [
     label: 'Insight',
     items: [
       { to: '/reports', icon: '◔', label: 'Reports', permission: 'reports.view', available: false },
-      { to: '/knowledge', icon: '❑', label: 'Knowledge base', permission: 'knowledge.view', available: false },
+      { to: '/knowledge', icon: '❑', label: 'Knowledge base', permission: 'knowledge.view', available: true },
       { to: '/audit', icon: '◧', label: 'Audit log', permission: 'audit.view', available: false },
     ],
   },

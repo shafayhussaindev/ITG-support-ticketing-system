@@ -48,10 +48,23 @@ describe('visibleNavigation', () => {
     // Guards against a route being switched on in the navigation before its API is
     // built, which would send testers to a page that cannot work. Reports is the
     // current example: the screen is designed, the endpoint is not written.
-    const groups = visibleNavigation(permissionChecker('reports.view', 'knowledge.view'));
-    const insight = groups.find((g) => g.label === 'Insight');
+    const groups = visibleNavigation(permissionChecker('reports.view'));
 
-    expect(insight.items.every((item) => item.available === false)).toBe(true);
+    const reports = groups
+      .flatMap((g) => g.items)
+      .find((i) => i.to === '/reports');
+
+    expect(reports.available).toBe(false);
+  });
+
+  it('shows the knowledge base as built', () => {
+    const groups = visibleNavigation(permissionChecker('knowledge.view'));
+
+    const knowledge = groups
+      .flatMap((g) => g.items)
+      .find((i) => i.to === '/knowledge');
+
+    expect(knowledge.available).toBe(true);
   });
 
   it('shows escalations as built now that the SLA engine fills the queue', () => {
