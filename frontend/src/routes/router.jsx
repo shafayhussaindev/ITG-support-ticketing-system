@@ -3,7 +3,6 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { LoginPage } from '@/features/auth/LoginPage';
-import { NotImplementedPage } from '@/pages/NotImplementedPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { LoadingState } from '@/components/ui';
 
@@ -46,6 +45,30 @@ const AuditLogPage = lazy(() =>
   import('@/features/audit/AuditLogPage').then((m) => ({ default: m.AuditLogPage })),
 );
 
+const UsersPage = lazy(() =>
+  import('@/features/admin/UsersPage').then((m) => ({ default: m.UsersPage })),
+);
+
+const RolesPage = lazy(() =>
+  import('@/features/admin/RolesPage').then((m) => ({ default: m.RolesPage })),
+);
+
+const TeamsPage = lazy(() =>
+  import('@/features/admin/TeamsPage').then((m) => ({ default: m.TeamsPage })),
+);
+
+const CatalogPage = lazy(() =>
+  import('@/features/admin/CatalogPage').then((m) => ({ default: m.CatalogPage })),
+);
+
+const SlaPoliciesPage = lazy(() =>
+  import('@/features/admin/SlaPoliciesPage').then((m) => ({ default: m.SlaPoliciesPage })),
+);
+
+const SystemSettingsPage = lazy(() =>
+  import('@/features/admin/SystemSettingsPage').then((m) => ({ default: m.SystemSettingsPage })),
+);
+
 const AiSettingsPage = lazy(() =>
   import('@/features/admin/AiSettingsPage').then((m) => ({ default: m.AiSettingsPage })),
 );
@@ -57,65 +80,6 @@ const ArticlePage = lazy(() =>
 function lazyRoute(element) {
   return <Suspense fallback={<LoadingState label="Loading" />}>{element}</Suspense>;
 }
-
-/**
- * Routes for modules that are navigable but not yet implemented. Declaring them
- * here rather than writing a stub component each keeps the honesty consistent and
- * makes the remaining work countable.
- */
-const planned = [
-  {
-    path: 'admin/users',
-    permission: 'users.manage',
-    title: 'User management',
-    phase: 'Phase 2',
-    description: 'Create, deactivate and edit users, and assign their roles and teams.',
-    endpoints: ['GET /api/v1/users', 'POST /api/v1/users', 'PUT /api/v1/users/{id}/roles'],
-  },
-  {
-    path: 'admin/roles',
-    permission: 'roles.manage',
-    title: 'Roles and permissions',
-    phase: 'Phase 2',
-    description:
-      'Edit which permissions each role carries. Roles are database rows, not hardcoded checks, so changes take effect without a deployment.',
-    endpoints: ['GET /api/v1/roles', 'PUT /api/v1/roles/{id}/permissions', 'GET /api/v1/permissions'],
-  },
-  {
-    path: 'admin/teams',
-    permission: 'teams.manage',
-    title: 'Teams and routing',
-    phase: 'Phase 2',
-    description: 'Team membership, capacity weighting and the routing rules that pick an assignee.',
-    endpoints: ['GET /api/v1/teams', 'PUT /api/v1/teams/{id}/members'],
-  },
-  {
-    path: 'admin/catalog',
-    permission: 'catalog.manage',
-    title: 'Categories and modules',
-    phase: 'Phase 2',
-    description:
-      'Categories, subcategories, applications, modules, and the impact-by-urgency priority matrix. The matrix is already seeded with sixteen cells.',
-    endpoints: ['GET /api/v1/categories', 'PUT /api/v1/priority-matrix'],
-  },
-  {
-    path: 'admin/sla',
-    permission: 'sla.manage',
-    title: 'SLA policies and calendars',
-    phase: 'Phase 3',
-    description:
-      'Response and resolution targets per priority, business hours, weekends, holidays and pause conditions.',
-    endpoints: ['GET /api/v1/sla-policies', 'GET /api/v1/business-calendars'],
-  },
-  {
-    path: 'admin/settings',
-    permission: 'system.configure',
-    title: 'System settings',
-    phase: 'Phase 4',
-    description: 'Runtime configuration, notification rules and integration settings.',
-    endpoints: ['GET /api/v1/system/settings'],
-  },
-];
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -176,6 +140,44 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'admin/users',
+        element: (
+          <ProtectedRoute permission="users.manage">{lazyRoute(<UsersPage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/roles',
+        element: (
+          <ProtectedRoute permission="roles.manage">{lazyRoute(<RolesPage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/teams',
+        element: (
+          <ProtectedRoute permission="teams.manage">{lazyRoute(<TeamsPage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/catalog',
+        element: (
+          <ProtectedRoute permission="catalog.manage">{lazyRoute(<CatalogPage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/sla',
+        element: (
+          <ProtectedRoute permission="sla.manage">{lazyRoute(<SlaPoliciesPage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/settings',
+        element: (
+          <ProtectedRoute permission="system.configure">
+            {lazyRoute(<SystemSettingsPage />)}
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: 'admin/ai',
         element: (
           <ProtectedRoute permission="ai.configure">{lazyRoute(<AiSettingsPage />)}</ProtectedRoute>
@@ -187,15 +189,6 @@ export const router = createBrowserRouter([
           <ProtectedRoute permission="ticket.view_own">{lazyRoute(<TicketDetailPage />)}</ProtectedRoute>
         ),
       },
-
-      ...planned.map(({ path, permission, ...page }) => ({
-        path,
-        element: (
-          <ProtectedRoute permission={permission}>
-            <NotImplementedPage {...page} />
-          </ProtectedRoute>
-        ),
-      })),
 
       { path: '*', element: <NotFoundPage /> },
     ],

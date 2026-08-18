@@ -44,25 +44,25 @@ describe('visibleNavigation', () => {
     ]);
   });
 
-  it('marks modules whose backend does not exist yet', () => {
-    // Guards against a route being switched on in the navigation before its API is
-    // built, which would send testers to a page that cannot work. User management is
-    // the current example: the domain and tables exist, the endpoints do not.
-    const groups = visibleNavigation(permissionChecker('users.manage'));
+  it('marks every destination as built', () => {
+    // The flag exists so a route can never be switched on in the navigation before
+    // its API is written, which would send testers to a page that cannot work.
+    // Nothing is pending now; this fails the moment a half-built item is added.
+    const everything = visibleNavigation(() => true).flatMap((g) => g.items);
 
-    const users = groups
-      .flatMap((g) => g.items)
-      .find((i) => i.to === '/admin/users');
-
-    expect(users.available).toBe(false);
+    expect(everything.filter((i) => i.available !== true)).toEqual([]);
   });
 
-  it('shows reports and the audit log as built', () => {
-    const groups = visibleNavigation(permissionChecker('reports.view', 'audit.view'));
+  it('shows reports, the audit log and administration as built', () => {
+    const groups = visibleNavigation(permissionChecker(
+      'reports.view', 'audit.view', 'users.manage', 'sla.manage',
+    ));
     const items = groups.flatMap((g) => g.items);
 
     expect(items.find((i) => i.to === '/reports').available).toBe(true);
     expect(items.find((i) => i.to === '/audit').available).toBe(true);
+    expect(items.find((i) => i.to === '/admin/users').available).toBe(true);
+    expect(items.find((i) => i.to === '/admin/sla').available).toBe(true);
   });
 
   it('shows the knowledge base as built', () => {

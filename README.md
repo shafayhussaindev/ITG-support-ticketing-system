@@ -3,16 +3,17 @@
 Enterprise support ticketing platform for internal IT, ERP application support, customer
 support and supplier support. ASP.NET Core 10 Web API, SQL Server, Clean Architecture.
 
-> **Current state: Phases 1 to 5 built on the backend; the frontend covers the
-> day-to-day workflow but not administration.**
+> **Current state: Phases 1 to 5 complete, front and back.**
 > Authentication, master data, the full ticket lifecycle, the SLA engine with business
 > calendars, the escalation ladder, notifications over SignalR, dashboards, the
 > knowledge base, satisfaction ratings, ERP record links and optional AI assistance are
 > implemented and covered by tests that run against a real SQL Server database.
-> Analytical reporting with CSV export and the audit log viewer are built too.
-> **Email intake is not built**, and the admin screens (users, roles, teams, catalog,
-> SLA policies) have no user interface yet — their routes say so plainly rather than
-> showing a mock.
+> Analytical reporting with CSV export, the audit log viewer and the full
+> administration section — users, roles and permissions, teams, catalogue and the
+> priority matrix, SLA policies and business calendars, AI assistance and system
+> settings — are built and usable. Every navigation destination now leads to a working
+> screen; none is a placeholder.
+> **Email intake is not built.**
 > See [Delivery status](#delivery-status) for exactly what exists.
 
 ---
@@ -329,6 +330,23 @@ audited decision. This is asserted by an integration test.
 | GET | `/api/v1/audit` | `audit.view` | Search the append-only log, denied actions included |
 | GET | `/api/v1/audit/filters` | `audit.view` | The values that actually occur, for the filter controls |
 | GET | `/api/v1/audit/entities/{id}` | `audit.view` | One entity's history, oldest first |
+| GET | `/api/v1/admin/users` | `users.manage` | Search accounts with roles, teams and load |
+| POST | `/api/v1/admin/users` | `users.manage` | Generates a one-time password, shown once |
+| PUT | `/api/v1/admin/users/{id}/roles` | `roles.manage` | Replaces the set wholesale |
+| POST | `/api/v1/admin/users/{id}/active` | `users.manage` | Deactivate — revokes every session |
+| POST | `/api/v1/admin/users/{id}/reset-password` | `users.manage` | New one-time password, signs out everywhere |
+| GET | `/api/v1/admin/roles` | `roles.manage` | Roles with permissions and holder counts |
+| GET | `/api/v1/admin/permissions` | `roles.manage` | The catalogue, read from the table |
+| PUT | `/api/v1/admin/roles/{id}/permissions` | `roles.manage` | Refused if it would orphan role management |
+| GET | `/api/v1/admin/teams` | `teams.manage` | Teams, members, capacity weights, load |
+| PUT | `/api/v1/admin/teams/{id}/members` | `teams.manage` | Add or re-weight a member |
+| GET | `/api/v1/admin/catalog/categories` | `catalog.manage` | Categories, subcategories, ticket counts |
+| GET | `/api/v1/admin/catalog/applications` | `catalog.manage` | Applications and modules |
+| PUT | `/api/v1/admin/catalog/priority-matrix` | `catalog.manage` | All sixteen cells or nothing |
+| GET | `/api/v1/admin/sla/policies` | `sla.manage` | Policies, targets, running-clock counts |
+| GET | `/api/v1/admin/sla/calendars` | `calendars.manage` | Working hours and holidays |
+| GET | `/api/v1/admin/settings` | `system.configure` | Runtime configuration, secrets masked |
+| GET | `/api/v1/admin/reference` | any admin | Every dropdown an admin form needs, in one call |
 | GET | `/api/v1/tickets/{id}/feedback` | Bearer | Satisfaction rating, if given |
 | POST | `/api/v1/tickets/{id}/feedback` | requester | One rating per ticket, editable by its author |
 | GET | `/api/v1/knowledge/articles` | `knowledge.view` | Search, filter, page |
@@ -343,8 +361,9 @@ audited decision. This is asserted by an integration test.
 | GET | `/health/live` | Anonymous | Liveness |
 | GET | `/health/ready` | Anonymous | Readiness, checks the database |
 
-50 endpoints across nine controllers. Errors are RFC 7807 Problem Details with a stable
-`code` and a `correlationId`. Stack traces and SQL are never serialised.
+94 endpoints across sixteen controllers; the table above lists the ones worth knowing
+about. Errors are RFC 7807 Problem Details with a stable `code` and a `correlationId`.
+Stack traces and SQL are never serialised.
 
 ---
 
@@ -354,13 +373,13 @@ audited decision. This is asserted by an integration test.
 dotnet test
 ```
 
-**209 backend tests and 24 frontend tests, all passing** as of the last run:
+**235 backend tests and 24 frontend tests, all passing** as of the last run:
 
 | Project | Tests | Covers |
 |---|---|---|
 | `SupportTicketing.UnitTests` | 94 | Password hashing, priority matrix, workflow graph, business-hours arithmetic including DST, SLA state machine |
 | `SupportTicketing.ArchitectureTests` | 7 | Layer dependencies, no entities on controllers, anonymous-endpoint allowlist, tenant-filter bypass allowlist, no SQL Server provider types in Application |
-| `SupportTicketing.IntegrationTests` | 108 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, report scoping, CSV export and formula neutralisation, audit filtering and tenant separation, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
+| `SupportTicketing.IntegrationTests` | 134 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, report scoping, CSV export and formula neutralisation, audit filtering, the whole administration surface including permission guards and secret masking, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
 | `frontend` (Vitest) | 24 | Token store, single-flight refresh, navigation filtering, SLA formatting |
 
 Integration tests use a **real SQL Server database** (`SupportTicketing_IntegrationTests`,
@@ -430,6 +449,35 @@ query filters — an in-memory double would have passed while the API was broken
   free text, with denied actions kept and each row expandable to the field values,
   reason, IP address and correlation identifier recorded with it
 
+**Administration**
+
+- **Users**: search, create, edit, deactivate and restore, replace roles, reset a
+  password, sign an account out everywhere. Accounts are never deleted. Creation and
+  reset generate a one-time password the administrator never chooses and the system
+  never stores readably; deactivation and reset revoke every refresh token the person
+  holds, which is what actually ends access
+- **Roles and permissions**: a checklist of all 55 keys grouped by area, editable on
+  system roles too — the seeded roles are a starting point, not a contract. The one
+  edit that is refused is the one nobody recovers from without database access:
+  removing role management from the last role that has it. Unknown keys are rejected
+  rather than silently dropped
+- **Teams**: membership with per-member capacity weight, team lead, escalation target
+  and acceptance timeout. A team cannot escalate to itself, and somebody who still owns
+  open work for the team cannot be removed from it
+- **Catalogue**: categories, subcategories, applications and modules, plus the
+  impact-by-urgency **priority matrix** edited as a grid. All sixteen cells are
+  required — a partial save is refused, because a half-configured grid is the kind of
+  thing nobody notices until a Critical ticket comes out Medium
+- **SLA policies** with per-priority response and resolution targets, and **business
+  calendars** with weekly hours and holidays. Time zones are validated at configuration
+  time rather than failing later inside a background sweep; a resolution target inside
+  its response target is refused as unsatisfiable
+- **System settings**: per-organization overrides of runtime configuration, with
+  sensitive values masked in the API, in the UI and in the audit trail. Sending a
+  masked value back leaves the stored secret untouched — otherwise opening the page and
+  pressing save would destroy every credential on it
+- **AI assistance** settings (see Phase 5)
+
 **Phase 5 — business context and AI**
 
 - ERP record links: purchase order, style, customer, supplier, factory, merchant,
@@ -460,8 +508,6 @@ query filters — an in-memory double would have passed while the API was broken
 - **Email intake.** Nothing reads a mailbox or turns a reply into a comment. This was
   in the Phase 5 brief and is not implemented; `TicketSource.Email` exists in the
   domain but no ingester writes it.
-- **Admin screens.** Users, roles, teams, catalog, SLA policies and system settings
-  have no UI. Their routes exist and say plainly that they are unimplemented.
 - **Attachments.** The table and domain entity exist; upload and download do not.
 - **Approvals and parent–child tickets**, **SMTP delivery** (notifications are stored
   and pushed over SignalR, not emailed), **password change and reset**.

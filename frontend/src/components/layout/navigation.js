@@ -51,13 +51,13 @@ export const navigation = [
   {
     label: 'Administration',
     items: [
-      { to: '/admin/users', icon: '◐', label: 'Users', permission: 'users.manage', available: false },
-      { to: '/admin/roles', icon: '◑', label: 'Roles & permissions', permission: 'roles.manage', available: false },
-      { to: '/admin/teams', icon: '◒', label: 'Teams', permission: 'teams.manage', available: false },
-      { to: '/admin/catalog', icon: '◓', label: 'Categories', permission: 'catalog.manage', available: false },
-      { to: '/admin/sla', icon: '◴', label: 'SLA policies', permission: 'sla.manage', available: false },
+      { to: '/admin/users', icon: '◐', label: 'Users', permission: 'users.manage', available: true },
+      { to: '/admin/roles', icon: '◑', label: 'Roles & permissions', permission: 'roles.manage', available: true },
+      { to: '/admin/teams', icon: '◒', label: 'Teams', permission: 'teams.manage', available: true },
+      { to: '/admin/catalog', icon: '◓', label: 'Categories', permission: 'catalog.manage', available: true },
+      { to: '/admin/sla', icon: '◴', label: 'SLA policies', permission: 'sla.manage', available: true },
       { to: '/admin/ai', icon: '◈', label: 'AI assistance', permission: 'ai.configure', available: true },
-      { to: '/admin/settings', icon: '⚙', label: 'System settings', permission: 'system.configure', available: false },
+      { to: '/admin/settings', icon: '⚙', label: 'System settings', permission: 'system.configure', available: true },
     ],
   },
 ];
