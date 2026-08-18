@@ -1,0 +1,162 @@
+using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
+using SupportTicketing.Api.Security;
+using SupportTicketing.Application.Abstractions;
+using SupportTicketing.Application.Features.Tickets;
+using SupportTicketing.Contracts.Tickets;
+using SupportTicketing.Domain.Enums;
+using SupportTicketing.Domain.Identity;
+
+namespace SupportTicketing.Api.Controllers;
+
+[ApiController]
+[Route("api/v1/tickets")]
+[Produces("application/json")]
+public sealed class TicketsController(IDispatcher dispatcher) : ControllerBase
+{
+    /// <summary>Lists tickets the caller is entitled to see, with filtering, sorting and paging.</summary>
+    [HttpGet]
+    [SwaggerOperation(Summary = "List tickets", Description =
+        "Rows are restricted by the caller's data scope: a requester sees their own, an agent sees "
+        + "their team's, a manager sees the organization's. The scope is derived from the token, "
+        + "never from a query parameter.")]
+    [ProducesResponseType<PagedResult<TicketListItemResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<PagedResult<TicketListItemResponse>>> List(
+        [FromQuery] TicketListQueryParameters parameters, CancellationToken cancellationToken)
+    {
+        var result = await dispatcher.QueryAsync(new ListTicketsQuery(parameters), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Returns one ticket.</summary>
+    [HttpGet("{id:guid}")]
+    [SwaggerOperation(Summary = "Get a ticket", Description =
+        "Returns 404 rather than 403 for a ticket outside the caller's scope, so identifiers "
+        + "cannot be enumerated by comparing status codes.")]
+    [ProducesResponseType<TicketDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TicketDetailResponse>> Get(Guid id, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetTicketQuery(id), cancellationToken));
+
+    /// <summary>Raises a ticket.</summary>
+    [HttpPost]
+    [HasPermission(Permissions.Tickets.Create)]
+    [SwaggerOperation(Summary = "Raise a ticket", Description =
+        "Priority is calculated from impact and urgency using the organization's matrix. The "
+        + "request cannot set a priority directly.")]
+    [ProducesResponseType<TicketDetailResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<TicketDetailResponse>> Create(
+        [FromBody] CreateTicketRequest request, CancellationToken cancellationToken)
+    {
+        var ticket = await dispatcher.SendAsync(
+            new CreateTicketCommand(request, TicketSource.Portal), cancellationToken);
+
+        return CreatedAtAction(nameof(Get), new { id = ticket.Id }, ticket);
+    }
+
+    /// <summary>Assigns or reassigns a ticket.</summary>
+    [HttpPost("{id:guid}/assign")]
+    [SwaggerOperation(Summary = "Assign a ticket", Description =
+        "Records the previous and new owner, the method and the reason. Assigning an unowned "
+        + "ticket requires ticket.assign; taking one from another agent requires ticket.reassign.")]
+    [ProducesResponseType<TicketDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<TicketDetailResponse>> Assign(
+        Guid id, [FromBody] AssignTicketRequest request, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(new AssignTicketCommand(id, request), cancellationToken));
+
+    /// <summary>Accepts a ticket, claiming it if it is unassigned.</summary>
+    [HttpPost("{id:guid}/accept")]
+    [HasPermission(Permissions.Tickets.Accept)]
+    [SwaggerOperation(Summary = "Accept a ticket")]
+    [ProducesResponseType<TicketDetailResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<TicketDetailResponse>> Accept(Guid id, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(new AcceptTicketCommand(id), cancellationToken));
+
+    /// <summary>Moves a ticket to another status.</summary>
+    [HttpPost("{id:guid}/status")]
+    [SwaggerOperation(Summary = "Change status", Description =
+        "Validates the transition against the workflow graph. Resolve, close and reopen have "
+        + "their own endpoints because each requires additional information.")]
+    [ProducesResponseType<TicketDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<TicketDetailResponse>> ChangeStatus(
+        Guid id, [FromBody] ChangeStatusRequest request, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(new ChangeTicketStatusCommand(id, request), cancellationToken));
+
+    /// <summary>Recalculates or overrides priority.</summary>
+    [HttpPost("{id:guid}/priority")]
+    [HasPermission(Permissions.Tickets.ChangePriority)]
+    [SwaggerOperation(Summary = "Change priority", Description =
+        "Supply impact and urgency to recalculate from the matrix. Supplying a priority that "
+        + "differs from the calculated one additionally requires a reason.")]
+    [ProducesResponseType<TicketDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<TicketDetailResponse>> ChangePriority(
+        Guid id, [FromBody] ChangePriorityRequest request, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(new ChangeTicketPriorityCommand(id, request), cancellationToken));
+
+    /// <summary>Proposes a resolution.</summary>
+    [HttpPost("{id:guid}/resolve")]
+    [HasPermission(Permissions.Tickets.Resolve)]
+    [SwaggerOperation(Summary = "Resolve a ticket", Description =
+        "A resolution summary is mandatory. The ticket moves to Resolved and waits for the "
+        + "requester to confirm or reject.")]
+    [ProducesResponseType<TicketDetailResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<TicketDetailResponse>> Resolve(
+        Guid id, [FromBody] ResolveTicketRequest request, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(new ResolveTicketCommand(id, request), cancellationToken));
+
+    /// <summary>Closes a ticket, or confirms a resolution as the requester.</summary>
+    [HttpPost("{id:guid}/close")]
+    [SwaggerOperation(Summary = "Close a ticket")]
+    [ProducesResponseType<TicketDetailResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<TicketDetailResponse>> Close(
+        Guid id, [FromBody] CloseTicketRequest request, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(new CloseTicketCommand(id, request), cancellationToken));
+
+    /// <summary>Reopens a resolved or closed ticket.</summary>
+    [HttpPost("{id:guid}/reopen")]
+    [SwaggerOperation(Summary = "Reopen a ticket", Description =
+        "Reopens the same ticket rather than creating a new one, so the history stays continuous "
+        + "and the reopen rate remains measurable.")]
+    [ProducesResponseType<TicketDetailResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<TicketDetailResponse>> Reopen(
+        Guid id, [FromBody] ReopenTicketRequest request, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(new ReopenTicketCommand(id, request), cancellationToken));
+
+    /// <summary>Returns the conversation.</summary>
+    [HttpGet("{id:guid}/comments")]
+    [SwaggerOperation(Summary = "Get the conversation", Description =
+        "Internal notes are excluded at the database for any caller without the "
+        + "ticket.internal_note permission — they never enter the response payload.")]
+    [ProducesResponseType<IReadOnlyList<TicketCommentResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<TicketCommentResponse>>> Comments(
+        Guid id, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetTicketCommentsQuery(id), cancellationToken));
+
+    /// <summary>Adds a public reply or an internal note.</summary>
+    [HttpPost("{id:guid}/comments")]
+    [SwaggerOperation(Summary = "Add a comment", Description =
+        "Set isInternal to write a staff-only note, which requires ticket.internal_note.")]
+    [ProducesResponseType<TicketCommentResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<TicketCommentResponse>> AddComment(
+        Guid id, [FromBody] AddCommentRequest request, CancellationToken cancellationToken)
+    {
+        var comment = await dispatcher.SendAsync(new AddCommentCommand(id, request), cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, comment);
+    }
+
+    /// <summary>Reconstructs the ticket's lifecycle from its append-only history.</summary>
+    [HttpGet("{id:guid}/timeline")]
+    [SwaggerOperation(Summary = "Get the timeline", Description =
+        "Every status change, priority change and assignment in order, each attributed to a "
+        + "person, a rule, AI or a background job.")]
+    [ProducesResponseType<IReadOnlyList<TicketTimelineEntry>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<TicketTimelineEntry>>> Timeline(
+        Guid id, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetTicketTimelineQuery(id), cancellationToken));
+}

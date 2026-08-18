@@ -1,0 +1,136 @@
+.page {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.aside {
+  background: linear-gradient(160deg, #0f6e77 0%, #0a4d54 55%, #123244 100%);
+  color: #fff;
+  padding: var(--s-7);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.asideBrand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.asideMark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.16);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+
+.asideHeading {
+  font-size: 28px;
+  line-height: 1.25;
+  font-weight: 700;
+  max-width: 18ch;
+}
+
+.asideCopy {
+  margin-top: var(--s-3);
+  font-size: var(--fs-md);
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 44ch;
+}
+
+.asideList {
+  margin: var(--s-5) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.asideList li {
+  font-size: var(--fs-sm);
+  color: rgba(255, 255, 255, 0.78);
+  display: flex;
+  gap: var(--s-2);
+}
+
+.asideFoot {
+  font-size: var(--fs-xs);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.panel {
+  display: grid;
+  place-items: center;
+  padding: var(--s-5);
+  background: var(--c-bg);
+}
+
+.form {
+  width: min(380px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.title {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+}
+
+.subtitle {
+  margin-top: var(--s-1);
+  font-size: var(--fs-sm);
+  color: var(--c-text-2);
+}
+
+.alert {
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-danger);
+  background: var(--c-danger-soft);
+  color: var(--c-danger-text);
+  font-size: var(--fs-sm);
+}
+
+.alertWarning {
+  border-color: var(--c-warning);
+  background: var(--c-warning-soft);
+  color: var(--c-warning-text);
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+}
+
+.themeToggle {
+  border: none;
+  background: transparent;
+  color: var(--c-text-3);
+  cursor: pointer;
+  font-size: var(--fs-xs);
+  padding: 2px 4px;
+  border-radius: var(--r-sm);
+}
+
+.themeToggle:hover {
+  color: var(--c-text);
+  background: var(--c-surface-3);
+}
+
+@media (max-width: 860px) {
+  .page { grid-template-columns: 1fr; }
+  .aside { display: none; }
+}

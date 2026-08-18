@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Domain layer is intentionally dependency-free. It must never reference
+    Entity Framework, ASP.NET Core, or any infrastructure concern. This is
+    enforced by SupportTicketing.ArchitectureTests.
+  -->
+
+</Project>

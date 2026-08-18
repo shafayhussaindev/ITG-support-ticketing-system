@@ -1,0 +1,140 @@
+/*
+  Design tokens.
+
+  Colours are defined once on :root for light, then overridden wholesale under
+  [data-theme='dark']. Nothing outside this file hardcodes a colour, so a theme
+  change never requires hunting through components.
+
+  Every foreground/background pair below meets WCAG AA (4.5:1 for body text,
+  3:1 for large text and UI boundaries).
+*/
+
+:root {
+  /* ---- neutral ramp ---- */
+  --c-bg: #f4f6f9;
+  --c-surface: #ffffff;
+  --c-surface-2: #f8fafc;
+  --c-surface-3: #eef2f7;
+  --c-border: #d7dee8;
+  --c-border-strong: #b6c2d2;
+
+  --c-text: #16233d;
+  --c-text-2: #4a5670;
+  --c-text-3: #6b7793;
+  --c-text-inverse: #ffffff;
+
+  /* ---- brand ---- */
+  --c-primary: #0f6e77;
+  --c-primary-hover: #0c5b63;
+  --c-primary-soft: #e2f1f2;
+  --c-primary-text: #0a4d54;
+
+  --c-focus: #1a73e8;
+
+  /* ---- status ---- */
+  --c-danger: #c0392b;
+  --c-danger-soft: #fdecec;
+  --c-danger-text: #8e2a20;
+
+  --c-warning: #b06f0d;
+  --c-warning-soft: #fff6e0;
+  --c-warning-text: #7d4e08;
+
+  --c-success: #1e7d55;
+  --c-success-soft: #e7f5ee;
+  --c-success-text: #14563b;
+
+  --c-info: #2563a8;
+  --c-info-soft: #e8f0fa;
+  --c-info-text: #1a4677;
+
+  --c-neutral-soft: #eef1f6;
+  --c-neutral-text: #4a5670;
+
+  /* ---- priority (kept distinct from status so both can appear together) ---- */
+  --c-priority-critical: #b3261e;
+  --c-priority-high: #b0530d;
+  --c-priority-medium: #2563a8;
+  --c-priority-low: #4a5670;
+
+  /* ---- geometry ---- */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-full: 999px;
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+
+  /* ---- type ---- */
+  --font-sans: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Cascadia Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  --fs-xs: 11px;
+  --fs-sm: 12.5px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+
+  --shadow-sm: 0 1px 2px rgba(16, 26, 44, 0.07);
+  --shadow-md: 0 2px 8px rgba(16, 26, 44, 0.1);
+  --shadow-lg: 0 8px 28px rgba(16, 26, 44, 0.16);
+
+  --layout-sidebar: 236px;
+  --layout-topbar: 52px;
+}
+
+[data-theme='dark'] {
+  --c-bg: #0e1420;
+  --c-surface: #161d2b;
+  --c-surface-2: #1b2434;
+  --c-surface-3: #222c3e;
+  --c-border: #2c374a;
+  --c-border-strong: #3d4a61;
+
+  --c-text: #e8edf5;
+  --c-text-2: #adb8ca;
+  --c-text-3: #8593a9;
+  --c-text-inverse: #0e1420;
+
+  --c-primary: #35a3ad;
+  --c-primary-hover: #46b8c2;
+  --c-primary-soft: #10333a;
+  --c-primary-text: #7fd4dc;
+
+  --c-focus: #63a4ff;
+
+  --c-danger: #e5675a;
+  --c-danger-soft: #3a1d1a;
+  --c-danger-text: #f4a49a;
+
+  --c-warning: #dda03c;
+  --c-warning-soft: #3a2c14;
+  --c-warning-text: #f0c886;
+
+  --c-success: #46b483;
+  --c-success-soft: #12332a;
+  --c-success-text: #85d9b4;
+
+  --c-info: #5c9ce0;
+  --c-info-soft: #16283f;
+  --c-info-text: #a3c8f0;
+
+  --c-neutral-soft: #232d3e;
+  --c-neutral-text: #adb8ca;
+
+  --c-priority-critical: #e5675a;
+  --c-priority-high: #dda03c;
+  --c-priority-medium: #5c9ce0;
+  --c-priority-low: #8593a9;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.55);
+}

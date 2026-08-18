@@ -1,0 +1,193 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.thread {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.message {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+}
+
+.avatar {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--c-surface-3);
+  color: var(--c-text-2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.bubble {
+  flex: 1;
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface-2);
+}
+
+.mine .avatar {
+  background: var(--c-primary);
+  color: #fff;
+}
+
+/*
+  Internal notes get a heavy, unmistakable treatment: amber ground, dashed border and
+  an explicit label. An agent glancing at the thread must never have to work out
+  whether what they are about to write beneath is visible to the requester.
+*/
+.internal .bubble {
+  background: var(--c-warning-soft);
+  border-color: var(--c-warning);
+  border-style: dashed;
+}
+
+.messageHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-bottom: 4px;
+}
+
+.author {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.internalTag {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--c-warning-text);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.firstResponse {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--c-success-text);
+  background: var(--c-success-soft);
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+}
+
+.time {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+  white-space: nowrap;
+}
+
+.text {
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--c-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.closedNote {
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-surface-3);
+  font-size: var(--fs-sm);
+  color: var(--c-text-2);
+  text-align: center;
+}
+
+.composer {
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  padding: var(--s-3);
+  background: var(--c-surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.composerInternal {
+  background: var(--c-warning-soft);
+  border-color: var(--c-warning);
+  border-style: dashed;
+}
+
+.modeRow {
+  display: flex;
+  gap: var(--s-1);
+}
+
+.mode {
+  padding: 4px 10px;
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface);
+  color: var(--c-text-2);
+  border-radius: var(--r-full);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modeActive {
+  background: var(--c-primary);
+  border-color: var(--c-primary);
+  color: #fff;
+}
+
+.modeActiveInternal {
+  background: var(--c-warning);
+  border-color: var(--c-warning);
+  color: #201503;
+}
+
+.textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.composerActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.hint {
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+}
+
+.warning {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--c-warning-text);
+}

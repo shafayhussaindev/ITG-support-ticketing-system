@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Wire-format DTOs shared between the API and any .NET client.
+    No EF Core types, no domain entities, no infrastructure.
+  -->
+
+</Project>

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SupportTicketing.Domain\SupportTicketing.Domain.csproj" />
+    <ProjectReference Include="..\..\src\SupportTicketing.Application\SupportTicketing.Application.csproj" />
+    <ProjectReference Include="..\..\src\SupportTicketing.Infrastructure\SupportTicketing.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\SupportTicketing.Api\SupportTicketing.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="NetArchTest.Rules" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Shouldly" />
+  </ItemGroup>
+
+</Project>

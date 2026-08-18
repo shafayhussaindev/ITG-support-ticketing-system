@@ -1,0 +1,270 @@
+/* ---------------------------------------------------------------- Button */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sizeSm { padding: 6px 10px; }
+.sizeMd { padding: 9px 14px; }
+.sizeLg { padding: 12px 18px; font-size: var(--fs-md); }
+
+.primary {
+  background: var(--c-primary);
+  color: #fff;
+}
+.primary:hover:not(:disabled) { background: var(--c-primary-hover); }
+
+.secondary {
+  background: var(--c-surface);
+  color: var(--c-text);
+  border-color: var(--c-border-strong);
+}
+.secondary:hover:not(:disabled) { background: var(--c-surface-3); }
+
+.ghost {
+  background: transparent;
+  color: var(--c-text-2);
+}
+.ghost:hover:not(:disabled) {
+  background: var(--c-surface-3);
+  color: var(--c-text);
+}
+
+.danger {
+  background: var(--c-danger);
+  color: #fff;
+}
+.danger:hover:not(:disabled) { filter: brightness(0.92); }
+
+.fullWidth { width: 100%; }
+
+/* ---------------------------------------------------------------- Field */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-text-2);
+}
+
+.required {
+  color: var(--c-danger);
+  margin-left: 2px;
+}
+
+.input {
+  width: 100%;
+  padding: 9px 11px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-md);
+  font-size: var(--fs-md);
+  color: var(--c-text);
+}
+
+.input::placeholder { color: var(--c-text-3); }
+
+.input:disabled {
+  background: var(--c-surface-3);
+  cursor: not-allowed;
+}
+
+.inputInvalid {
+  border-color: var(--c-danger);
+}
+
+.hint {
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+}
+
+.error {
+  font-size: var(--fs-xs);
+  color: var(--c-danger-text);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- Card */
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.cardTitle {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.cardSubtitle {
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+  margin-top: 1px;
+}
+
+.cardBody { padding: var(--s-4); }
+
+/* ---------------------------------------------------------------- Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.badgeNeutral { background: var(--c-neutral-soft); color: var(--c-neutral-text); }
+.badgeInfo { background: var(--c-info-soft); color: var(--c-info-text); }
+.badgeSuccess { background: var(--c-success-soft); color: var(--c-success-text); }
+.badgeWarning { background: var(--c-warning-soft); color: var(--c-warning-text); }
+.badgeDanger { background: var(--c-danger-soft); color: var(--c-danger-text); }
+.badgePrimary { background: var(--c-primary-soft); color: var(--c-primary-text); }
+
+.badgeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ---------------------------------------------------------------- Spinner */
+.spinner {
+  display: inline-block;
+  border: 2px solid var(--c-border-strong);
+  border-top-color: var(--c-primary);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------------------------------------------------------------- Skeleton */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--c-surface-3) 25%,
+    var(--c-surface-2) 37%,
+    var(--c-surface-3) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.3s ease infinite;
+  border-radius: var(--r-sm);
+}
+
+@keyframes shimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+/* ---------------------------------------------------------------- States */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--s-2);
+  padding: var(--s-7) var(--s-4);
+}
+
+.stateIcon {
+  font-size: 26px;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.stateTitle {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+.stateMessage {
+  font-size: var(--fs-sm);
+  color: var(--c-text-2);
+  max-width: 46ch;
+}
+
+.stateActions {
+  margin-top: var(--s-2);
+  display: flex;
+  gap: var(--s-2);
+}
+
+.stateCode {
+  margin-top: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+}
+
+/* ---------------------------------------------------------------- Dialog */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: var(--s-4);
+  background: rgba(10, 16, 28, 0.55);
+}
+
+.dialog {
+  width: min(440px, 100%);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--s-5);
+}
+
+.dialogTitle {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+.dialogMessage {
+  margin-top: var(--s-2);
+  font-size: var(--fs-sm);
+  color: var(--c-text-2);
+}
+
+.dialogActions {
+  margin-top: var(--s-5);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}

@@ -1,0 +1,273 @@
+using System.Text;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.IdentityModel.Tokens;
+// Swashbuckle 10 ships OpenAPI.NET v2, where these types moved out of the
+// Microsoft.OpenApi.Models namespace into Microsoft.OpenApi itself.
+using Microsoft.OpenApi;
+using Serilog;
+using SupportTicketing.Api.Middleware;
+using SupportTicketing.Api.Security;
+using SupportTicketing.Application;
+using SupportTicketing.Application.Abstractions;
+using SupportTicketing.Application.Features.Auth;
+using SupportTicketing.Infrastructure;
+using SupportTicketing.Infrastructure.Security;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ---------------------------------------------------------------- logging
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "SupportTicketing.Api"));
+
+// ---------------------------------------------------------------- options
+builder.Services.AddOptions<AuthOptions>()
+    .Bind(builder.Configuration.GetSection(AuthOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// ---------------------------------------------------------------- layers
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
+builder.Services.AddSingleton<ITotpValidator, TotpValidator>();
+builder.Services.AddScoped<IPermissionResolver, PermissionResolver>();
+
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
+
+// ---------------------------------------------------------------- auth
+var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
+var signingKey = jwtSection["SigningKey"];
+
+if (string.IsNullOrWhiteSpace(signingKey) || signingKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:SigningKey is missing or shorter than 32 characters. " +
+        "Set it with 'dotnet user-secrets set \"Jwt:SigningKey\" \"<value>\"' in development, " +
+        "or the Jwt__SigningKey environment variable elsewhere. It must never be committed.");
+}
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        options.SaveToken = false;
+
+        // Without this the handler rewrites well-known short claim names to long
+        // Microsoft URIs — "sub" becomes nameidentifier, "email" becomes the schemas.
+        // URI, and so on. Any code reading a claim by the name it was written under
+        // then finds nothing, and the failure is silent: the value is simply absent.
+        options.MapInboundClaims = false;
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+            ClockSkew = TimeSpan.FromSeconds(
+                jwtSection.GetValue("ClockSkewSeconds", 30)),
+
+            // Without this the handler accepts a token signed with "alg":"none" style
+            // confusion in some configurations. Pinning the algorithm removes that class of attack.
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256]
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                if (context.Exception is SecurityTokenExpiredException)
+                {
+                    context.Response.Headers["X-Token-Expired"] = "true";
+                }
+
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    // Nothing is anonymous unless an endpoint opts out with [AllowAnonymous].
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
+
+// ---------------------------------------------------------------- CORS
+const string CorsPolicy = "SupportTicketingSpa";
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
+builder.Services.AddCors(options => options.AddPolicy(CorsPolicy, policy =>
+{
+    // An allowlist, never AllowAnyOrigin: credentials are sent with these requests.
+    policy.WithOrigins(allowedOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials()
+        .WithExposedHeaders(HttpContextCurrentUser.CorrelationHeader);
+}));
+
+// ---------------------------------------------------------------- rate limiting
+// Configurable so an operator can tighten them under attack, and so the integration
+// suite can raise them — dozens of sign-ins from one loopback address would otherwise
+// trip the limiter and produce failures unrelated to what is being tested.
+var authPermitLimit = builder.Configuration.GetValue("RateLimiting:Auth:PermitLimit", 10);
+var authWindowSeconds = builder.Configuration.GetValue("RateLimiting:Auth:WindowSeconds", 60);
+var globalPermitLimit = builder.Configuration.GetValue("RateLimiting:Global:PermitLimit", 300);
+var globalWindowSeconds = builder.Configuration.GetValue("RateLimiting:Global:WindowSeconds", 60);
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Sign-in is the endpoint worth attacking, so it gets a much tighter budget,
+    // keyed by client IP rather than by user (the attacker controls the username).
+    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = authPermitLimit,
+            Window = TimeSpan.FromSeconds(authWindowSeconds),
+            QueueLimit = 0
+        }));
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirst(AppClaims.UserId)?.Value
+                ?? context.Connection.RemoteIpAddress?.ToString()
+                ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = globalPermitLimit,
+                Window = TimeSpan.FromSeconds(globalWindowSeconds),
+                QueueLimit = 0
+            }));
+});
+
+// ---------------------------------------------------------------- MVC + docs
+builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
+builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Support Ticketing System API",
+        Version = "v1",
+        Description = "Enterprise support ticketing platform. All endpoints require a bearer token "
+                    + "unless explicitly marked anonymous."
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Paste the access token returned by POST /api/v1/auth/login."
+    });
+
+    // Swashbuckle 10 takes a factory rather than an instance, because the scheme
+    // reference has to be bound to the document being generated.
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        { new OpenApiSecuritySchemeReference("Bearer", document, externalResource: null), [] }
+    });
+
+    options.EnableAnnotations();
+});
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<SupportTicketing.Infrastructure.Persistence.AppDbContext>(
+        name: "database",
+        tags: ["ready"]);
+
+var app = builder.Build();
+
+// ---------------------------------------------------------------- pipeline
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("CorrelationId",
+            httpContext.Response.Headers[HttpContextCurrentUser.CorrelationHeader].ToString());
+        diagnosticContext.Set("UserId", httpContext.User.FindFirst(AppClaims.UserId)?.Value);
+    };
+});
+
+app.Use(async (context, next) =>
+{
+    // Defence in depth for a JSON API. A strict CSP matters because Swagger UI and any
+    // future server-rendered page are served from this origin.
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "no-referrer";
+    headers["X-Permitted-Cross-Domain-Policies"] = "none";
+    headers["Cross-Origin-Resource-Policy"] = "same-origin";
+
+    if (!context.Request.Path.StartsWithSegments("/swagger"))
+    {
+        headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
+    }
+
+    await next();
+});
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Support Ticketing API v1");
+        options.DocumentTitle = "Support Ticketing API";
+    });
+}
+else
+{
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+app.UseCors(CorsPolicy);
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false
+}).AllowAnonymous();
+
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+}).AllowAnonymous();
+
+// The development seeder is gated inside RunAsync; it refuses to run outside
+// Development regardless of how it is invoked.
+await SupportTicketing.Infrastructure.Persistence.Seeding.DevelopmentSeeder.RunAsync(app.Services, app.Environment.EnvironmentName);
+
+app.Run();
+
+/// <summary>Exposed so the integration test host can reference this assembly.</summary>
+public partial class Program;

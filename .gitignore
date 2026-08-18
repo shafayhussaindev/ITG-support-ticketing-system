@@ -1,0 +1,40 @@
+## .NET
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+*.suo
+.vs/
+
+## Rider / VS Code
+.idea/
+.vscode/
+
+## Node
+node_modules/
+dist/
+dist-ssr/
+.vite/
+coverage/
+playwright-report/
+test-results/
+*.local
+
+## Secrets and environment — never commit
+.env
+.env.*
+!.env.example
+appsettings.Development.local.json
+appsettings.Production.json
+secrets.json
+
+## Runtime artefacts
+logs/
+*.log
+app-data/attachments/
+
+## OS
+Thumbs.db
+.DS_Store
