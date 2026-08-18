@@ -6,6 +6,7 @@ using SupportTicketing.Domain.Catalog;
 using SupportTicketing.Domain.Common;
 using SupportTicketing.Domain.Enums;
 using SupportTicketing.Domain.Identity;
+using SupportTicketing.Application.Features.Sla;
 using SupportTicketing.Domain.Tickets;
 
 namespace SupportTicketing.Application.Features.Tickets;
@@ -49,6 +50,7 @@ public sealed class CreateTicketCommandHandler(
     IAppDbContext db,
     ICurrentUser currentUser,
     ITicketNumberGenerator numberGenerator,
+    ISlaEngine slaEngine,
     IAuditWriter audit,
     IClock clock)
     : ICommandHandler<CreateTicketCommand, TicketDetailResponse>
@@ -153,6 +155,11 @@ public sealed class CreateTicketCommandHandler(
             Source = DecisionSource.Rule,
             CorrelationId = currentUser.CorrelationId,
         });
+
+        // The clock starts inside the same transaction as the ticket. Starting it
+        // afterwards would leave a window where a ticket exists with no promise
+        // attached, and a crash in that window would lose the SLA entirely.
+        await slaEngine.StartAsync(ticket, cancellationToken);
 
         await AttachTagsAsync(ticket, request.Tags, organizationId, now, cancellationToken);
         AttachRelatedRecords(ticket, request.RelatedRecords, organizationId);

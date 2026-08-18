@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 // Microsoft.OpenApi.Models namespace into Microsoft.OpenApi itself.
 using Microsoft.OpenApi;
 using Serilog;
+using SupportTicketing.Api.Hubs;
 using SupportTicketing.Api.Middleware;
 using SupportTicketing.Api.Security;
 using SupportTicketing.Application;
@@ -15,6 +16,7 @@ using SupportTicketing.Application.Abstractions;
 using SupportTicketing.Application.Features.Auth;
 using SupportTicketing.Infrastructure;
 using SupportTicketing.Infrastructure.Security;
+using SupportTicketing.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +38,17 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
 builder.Services.AddSingleton<ITotpValidator, TotpValidator>();
 builder.Services.AddScoped<IPermissionResolver, PermissionResolver>();
+
+builder.Services.AddSignalR();
+
+// The SLA sweep runs in-process for now. It is written to be safe if two hosts run it
+// at once, so moving it to its own process later needs no code change.
+builder.Services.AddOptions<SlaMonitorOptions>()
+    .Bind(builder.Configuration.GetSection(SlaMonitorOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddHostedService<SlaMonitorService>();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -84,6 +97,23 @@ builder.Services
 
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context =>
+            {
+                // Browsers cannot set headers on a WebSocket handshake, so SignalR
+                // passes the token in the query string. Accepted only for the hub
+                // path, so a token can never leak into a normal request URL and from
+                // there into access logs or a Referer header.
+                var accessToken = context.Request.Query["access_token"];
+
+                if (!string.IsNullOrEmpty(accessToken)
+                    && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            },
+
             OnAuthenticationFailed = context =>
             {
                 if (context.Exception is SecurityTokenExpiredException)
@@ -252,6 +282,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<TicketHub>("/hubs/tickets");
 
 app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {

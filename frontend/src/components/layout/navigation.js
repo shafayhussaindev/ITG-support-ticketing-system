@@ -37,7 +37,7 @@ export const navigation = [
         permission: 'ticket.view_team',
         available: true,
       },
-      { to: '/escalations', icon: '▲', label: 'Escalations', permission: 'escalation.view', available: false },
+      { to: '/escalations', icon: '▲', label: 'Escalations', permission: 'escalation.view', available: true },
     ],
   },
   {

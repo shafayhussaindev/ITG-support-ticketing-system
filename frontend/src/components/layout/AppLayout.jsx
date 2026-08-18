@@ -5,6 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ConfirmDialog } from '@/components/ui';
+import { NotificationBell } from './NotificationBell';
 import { visibleNavigation } from './navigation';
 import s from './AppLayout.module.css';
 
@@ -130,6 +131,8 @@ export function AppLayout() {
         </div>
 
         <div className={s.topbarRight}>
+          <NotificationBell />
+
           <button
             type="button"
             className={s.iconButton}

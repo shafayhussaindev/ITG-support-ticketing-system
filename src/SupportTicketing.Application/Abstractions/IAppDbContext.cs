@@ -5,6 +5,9 @@ using SupportTicketing.Domain.Catalog;
 using SupportTicketing.Domain.Identity;
 using SupportTicketing.Domain.Organizations;
 using SupportTicketing.Domain.Teams;
+using SupportTicketing.Domain.Escalations;
+using SupportTicketing.Domain.Notifications;
+using SupportTicketing.Domain.Sla;
 using SupportTicketing.Domain.Tickets;
 
 namespace SupportTicketing.Application.Abstractions;
@@ -56,6 +59,22 @@ public interface IAppDbContext
     DbSet<TicketRelatedRecord> TicketRelatedRecords { get; }
     DbSet<TicketTag> TicketTags { get; }
     DbSet<TicketNumberSequence> TicketNumberSequences { get; }
+
+    DbSet<BusinessCalendar> BusinessCalendars { get; }
+    DbSet<BusinessHour> BusinessHours { get; }
+    DbSet<Holiday> Holidays { get; }
+    DbSet<SlaPolicy> SlaPolicies { get; }
+    DbSet<SlaTarget> SlaTargets { get; }
+    DbSet<TicketSlaInstance> TicketSlaInstances { get; }
+    DbSet<SlaEvent> SlaEvents { get; }
+
+    DbSet<EscalationPolicy> EscalationPolicies { get; }
+    DbSet<EscalationStep> EscalationSteps { get; }
+    DbSet<EscalationHistory> EscalationHistory { get; }
+
+    DbSet<Notification> Notifications { get; }
+    DbSet<NotificationDelivery> NotificationDeliveries { get; }
+    DbSet<NotificationPreference> NotificationPreferences { get; }
 
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<SystemSetting> SystemSettings { get; }

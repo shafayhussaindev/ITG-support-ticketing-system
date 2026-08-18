@@ -4,6 +4,7 @@ using SupportTicketing.Application.Abstractions;
 using SupportTicketing.Contracts.Tickets;
 using SupportTicketing.Domain.Enums;
 using SupportTicketing.Domain.Identity;
+using SupportTicketing.Application.Features.Sla;
 using SupportTicketing.Domain.Tickets;
 
 namespace SupportTicketing.Application.Features.Tickets;
@@ -33,7 +34,7 @@ public sealed class AddCommentCommandValidator : AbstractValidator<AddCommentCom
 /// serialisation bug or a future export tried to include one.
 /// </remarks>
 public sealed class AddCommentCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine, IAuditWriter audit, IClock clock)
     : ICommandHandler<AddCommentCommand, TicketCommentResponse>
 {
     public async Task<TicketCommentResponse> HandleAsync(
@@ -81,6 +82,13 @@ public sealed class AddCommentCommandHandler(
         db.TicketComments.Add(comment);
 
         await AddMentionsAsync(comment, request.MentionedUserIds, cancellationToken);
+
+        // The response clock stops at the first public reply from support, never
+        // at an internal note and never at the requester adding more detail.
+        if (isFirstResponse)
+        {
+            await slaEngine.RecordFirstResponseAsync(ticket, now, cancellationToken);
+        }
 
         // A public reply from support on a ticket that was waiting for the requester
         // hands the ball back to them; a reply from the requester returns it to support.

@@ -9,6 +9,9 @@ using SupportTicketing.Domain.Common;
 using SupportTicketing.Domain.Identity;
 using SupportTicketing.Domain.Organizations;
 using SupportTicketing.Domain.Teams;
+using SupportTicketing.Domain.Escalations;
+using SupportTicketing.Domain.Notifications;
+using SupportTicketing.Domain.Sla;
 using SupportTicketing.Domain.Tickets;
 
 namespace SupportTicketing.Infrastructure.Persistence;
@@ -76,6 +79,22 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<TicketRelatedRecord> TicketRelatedRecords => Set<TicketRelatedRecord>();
     public DbSet<TicketTag> TicketTags => Set<TicketTag>();
     public DbSet<TicketNumberSequence> TicketNumberSequences => Set<TicketNumberSequence>();
+
+    public DbSet<BusinessCalendar> BusinessCalendars => Set<BusinessCalendar>();
+    public DbSet<BusinessHour> BusinessHours => Set<BusinessHour>();
+    public DbSet<Holiday> Holidays => Set<Holiday>();
+    public DbSet<SlaPolicy> SlaPolicies => Set<SlaPolicy>();
+    public DbSet<SlaTarget> SlaTargets => Set<SlaTarget>();
+    public DbSet<TicketSlaInstance> TicketSlaInstances => Set<TicketSlaInstance>();
+    public DbSet<SlaEvent> SlaEvents => Set<SlaEvent>();
+
+    public DbSet<EscalationPolicy> EscalationPolicies => Set<EscalationPolicy>();
+    public DbSet<EscalationStep> EscalationSteps => Set<EscalationStep>();
+    public DbSet<EscalationHistory> EscalationHistory => Set<EscalationHistory>();
+
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();

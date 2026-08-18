@@ -30,6 +30,10 @@ const TicketDetailPage = lazy(() =>
   import('@/features/tickets/TicketDetailPage').then((m) => ({ default: m.TicketDetailPage })),
 );
 
+const EscalationsPage = lazy(() =>
+  import('@/features/escalations/EscalationsPage').then((m) => ({ default: m.EscalationsPage })),
+);
+
 function lazyRoute(element) {
   return <Suspense fallback={<LoadingState label="Loading" />}>{element}</Suspense>;
 }
@@ -40,15 +44,6 @@ function lazyRoute(element) {
  * makes the remaining work countable.
  */
 const planned = [
-  {
-    path: 'escalations',
-    permission: 'escalation.view',
-    title: 'Escalations',
-    phase: 'Phase 3',
-    description:
-      'The SLA breach and escalation queue, driven by a background service rather than by a browser tab being left open.',
-    endpoints: ['GET /api/v1/escalations', 'POST /api/v1/escalations/{id}/acknowledge'],
-  },
   {
     path: 'reports',
     permission: 'reports.view',
@@ -155,6 +150,12 @@ export const router = createBrowserRouter([
         path: 'tickets/new',
         element: (
           <ProtectedRoute permission="ticket.create">{lazyRoute(<CreateTicketPage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'escalations',
+        element: (
+          <ProtectedRoute permission="escalation.view">{lazyRoute(<EscalationsPage />)}</ProtectedRoute>
         ),
       },
       {

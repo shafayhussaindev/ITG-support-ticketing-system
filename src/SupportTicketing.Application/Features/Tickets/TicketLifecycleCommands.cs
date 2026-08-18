@@ -5,6 +5,7 @@ using SupportTicketing.Contracts.Tickets;
 using SupportTicketing.Domain.Common;
 using SupportTicketing.Domain.Enums;
 using SupportTicketing.Domain.Identity;
+using SupportTicketing.Application.Features.Sla;
 using SupportTicketing.Domain.Tickets;
 
 namespace SupportTicketing.Application.Features.Tickets;
@@ -198,7 +199,7 @@ public sealed class AssignTicketCommandHandler(
 public sealed record AcceptTicketCommand(Guid TicketId) : ICommand<TicketDetailResponse>;
 
 public sealed class AcceptTicketCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine, IAuditWriter audit, IClock clock)
     : ICommandHandler<AcceptTicketCommand, TicketDetailResponse>
 {
     public async Task<TicketDetailResponse> HandleAsync(
@@ -252,6 +253,8 @@ public sealed class AcceptTicketCommandHandler(
                 db, ticket, TicketStatus.InProgress, currentUser, now, "Accepted by the assigned agent.");
         }
 
+        await slaEngine.SynchroniseWithStatusAsync(ticket, cancellationToken);
+
         await audit.WriteAsync(
             AuditAction.StatusChanged, nameof(Ticket), ticket.Id, ticket.TicketNumber,
             changes: new { Accepted = true, ticket.Status },
@@ -281,7 +284,7 @@ public sealed class ChangeTicketStatusCommandValidator : AbstractValidator<Chang
 }
 
 public sealed class ChangeTicketStatusCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine, IAuditWriter audit, IClock clock)
     : ICommandHandler<ChangeTicketStatusCommand, TicketDetailResponse>
 {
     public async Task<TicketDetailResponse> HandleAsync(
@@ -321,6 +324,17 @@ public sealed class ChangeTicketStatusCommandHandler(
 
         TicketMutation.Transition(db, ticket, target, currentUser, now, command.Request.Reason);
 
+        // Waiting on the requester or a third party stops the clock; anything else
+        // resumes it. Cancelling ends the promise rather than pausing it.
+        if (target == TicketStatus.Cancelled)
+        {
+            await slaEngine.CancelAsync(ticket, command.Request.Reason ?? "Ticket cancelled.", cancellationToken);
+        }
+        else
+        {
+            await slaEngine.SynchroniseWithStatusAsync(ticket, cancellationToken);
+        }
+
         await audit.WriteAsync(
             AuditAction.StatusChanged, nameof(Ticket), ticket.Id, ticket.TicketNumber,
             changes: new { From = from.ToString(), To = target.ToString() },
@@ -352,7 +366,7 @@ public sealed class ChangeTicketPriorityCommandValidator : AbstractValidator<Cha
 }
 
 public sealed class ChangeTicketPriorityCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine, IAuditWriter audit, IClock clock)
     : ICommandHandler<ChangeTicketPriorityCommand, TicketDetailResponse>
 {
     public async Task<TicketDetailResponse> HandleAsync(
@@ -412,6 +426,10 @@ public sealed class ChangeTicketPriorityCommandHandler(
             CorrelationId = currentUser.CorrelationId,
         });
 
+        // A new priority normally means a different target, so deadlines are
+        // recomputed from the original start rather than from now.
+        await slaEngine.RecalculateForPriorityAsync(ticket, cancellationToken);
+
         await audit.WriteAsync(
             AuditAction.PriorityChanged, nameof(Ticket), ticket.Id, ticket.TicketNumber,
             changes: new
@@ -449,7 +467,7 @@ public sealed class ResolveTicketCommandValidator : AbstractValidator<ResolveTic
 }
 
 public sealed class ResolveTicketCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine, IAuditWriter audit, IClock clock)
     : ICommandHandler<ResolveTicketCommand, TicketDetailResponse>
 {
     public async Task<TicketDetailResponse> HandleAsync(
@@ -481,6 +499,9 @@ public sealed class ResolveTicketCommandHandler(
         });
 
         ticket.FirstRespondedAtUtc ??= now;
+
+        await slaEngine.RecordFirstResponseAsync(ticket, now, cancellationToken);
+        await slaEngine.RecordResolvedAsync(ticket, now, cancellationToken);
 
         await audit.WriteAsync(
             AuditAction.StatusChanged, nameof(Ticket), ticket.Id, ticket.TicketNumber,
@@ -578,7 +599,7 @@ public sealed class ReopenTicketCommandValidator : AbstractValidator<ReopenTicke
 /// one continuous record and makes the reopen rate measurable.
 /// </remarks>
 public sealed class ReopenTicketCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine, IAuditWriter audit, IClock clock)
     : ICommandHandler<ReopenTicketCommand, TicketDetailResponse>
 {
     public async Task<TicketDetailResponse> HandleAsync(
@@ -624,6 +645,11 @@ public sealed class ReopenTicketCommandHandler(
             AuthorId = currentUser.UserId,
             Body = command.Request.Reason.Trim(),
         });
+
+        // A rejected resolution means the work is not finished, so the clock is
+        // brought back to life against the original targets.
+        await slaEngine.RecalculateForPriorityAsync(ticket, cancellationToken);
+        await slaEngine.SynchroniseWithStatusAsync(ticket, cancellationToken);
 
         await audit.WriteAsync(
             AuditAction.StatusChanged, nameof(Ticket), ticket.Id, ticket.TicketNumber,

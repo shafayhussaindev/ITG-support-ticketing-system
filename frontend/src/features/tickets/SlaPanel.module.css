@@ -1,0 +1,152 @@
+.headline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+
+.remaining {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+}
+
+.success { color: var(--c-success-text); }
+.warning { color: var(--c-warning-text); }
+.danger { color: var(--c-danger-text); }
+.info { color: var(--c-info-text); }
+.neutral { color: var(--c-text-2); }
+
+.percent {
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+  white-space: nowrap;
+}
+
+.track {
+  position: relative;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--c-surface-3);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-full);
+  transition: width 400ms ease;
+}
+
+.fill_success { background: var(--c-success); }
+.fill_warning { background: var(--c-warning); }
+.fill_danger { background: var(--c-danger); }
+.fill_info { background: var(--c-info); }
+.fill_neutral { background: var(--c-border-strong); }
+
+/* Marks where the warning fires, so the bar shows how much slack is left. */
+.threshold {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 12px;
+  background: var(--c-text-3);
+  opacity: 0.55;
+}
+
+.pausedNote {
+  margin-top: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-info-soft);
+  color: var(--c-info-text);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.breach {
+  margin-top: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-danger-soft);
+  color: var(--c-danger-text);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.none {
+  font-size: var(--fs-sm);
+  color: var(--c-text-2);
+  line-height: 1.55;
+}
+
+.dl {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: var(--s-2) var(--s-3);
+  margin: var(--s-4) 0 0;
+  font-size: var(--fs-sm);
+}
+
+.dl dt {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--c-text-3);
+  padding-top: 2px;
+}
+
+.dl dd {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
+.sub {
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+}
+
+.events {
+  margin-top: var(--s-4);
+  border-top: 1px solid var(--c-border);
+  padding-top: var(--s-3);
+}
+
+.events summary {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--c-text-2);
+  cursor: pointer;
+}
+
+.eventList {
+  list-style: none;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.eventList li {
+  display: grid;
+  gap: 1px;
+  font-size: var(--fs-xs);
+}
+
+.eventType {
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.eventTime { color: var(--c-text-3); }
+
+.eventDetail {
+  color: var(--c-text-2);
+  line-height: 1.45;
+}

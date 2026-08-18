@@ -46,15 +46,22 @@ describe('visibleNavigation', () => {
 
   it('marks modules whose backend does not exist yet', () => {
     // Guards against a route being switched on in the navigation before its API is
-    // built, which would send testers to a page that cannot work. Escalations is the
-    // canonical example: the queue is designed but the SLA engine that fills it is not.
-    const groups = visibleNavigation(permissionChecker('escalation.view', 'reports.view'));
+    // built, which would send testers to a page that cannot work. Reports is the
+    // current example: the screen is designed, the endpoint is not written.
+    const groups = visibleNavigation(permissionChecker('reports.view', 'knowledge.view'));
+    const insight = groups.find((g) => g.label === 'Insight');
+
+    expect(insight.items.every((item) => item.available === false)).toBe(true);
+  });
+
+  it('shows escalations as built now that the SLA engine fills the queue', () => {
+    const groups = visibleNavigation(permissionChecker('escalation.view'));
 
     const escalations = groups
       .flatMap((g) => g.items)
       .find((i) => i.to === '/escalations');
 
-    expect(escalations.available).toBe(false);
+    expect(escalations.available).toBe(true);
   });
 
   it('shows the ticket routes as built', () => {

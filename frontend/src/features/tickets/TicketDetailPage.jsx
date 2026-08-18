@@ -12,6 +12,7 @@ import {
 import { PriorityBadge, StatusBadge, TypeBadge, humanizeStatus } from '@/components/ui/TicketBadges';
 import { formatDateTime, formatRelative } from '@/utils/datetime';
 import { Conversation } from './Conversation';
+import { SlaPanel } from './SlaPanel';
 import s from './TicketDetailPage.module.css';
 
 export function TicketDetailPage() {
@@ -206,6 +207,8 @@ export function TicketDetailPage() {
         </div>
 
         <aside className={s.side}>
+          <SlaPanel ticketId={id} />
+
           <Card>
             <CardHeader title="Details" />
             <CardBody>

@@ -7,7 +7,9 @@ using SupportTicketing.Application.Abstractions;
 using SupportTicketing.Domain.Catalog;
 using SupportTicketing.Domain.Enums;
 using SupportTicketing.Domain.Identity;
+using SupportTicketing.Domain.Escalations;
 using SupportTicketing.Domain.Organizations;
+using SupportTicketing.Domain.Sla;
 using SupportTicketing.Domain.Teams;
 
 namespace SupportTicketing.Infrastructure.Persistence.Seeding;
@@ -306,6 +308,30 @@ public static class DevelopmentSeeder
 
         await db.SaveChangesAsync();
 
+        // The escalation ladder resolves recipients by role at the moment it fires, so
+        // without a team lead and a department manager every rung would record
+        // "nobody matched" and reach no one. Wiring them here makes the seeded
+        // escalation policy actually deliverable.
+        var leadUser = await db.Users
+            .FirstOrDefaultAsync(u => u.OrganizationId == orgId && u.JobTitle == RoleNames.TeamLead);
+
+        if (leadUser is not null)
+        {
+            itTeam.TeamLeadId = leadUser.Id;
+            erpTeam.TeamLeadId = leadUser.Id;
+        }
+
+        var managerUser = await db.Users
+            .FirstOrDefaultAsync(u => u.OrganizationId == orgId && u.JobTitle == RoleNames.Manager);
+
+        if (managerUser is not null)
+        {
+            itDepartment.ManagerId = managerUser.Id;
+            opsDepartment.ManagerId = managerUser.Id;
+        }
+
+        await db.SaveChangesAsync();
+
         // ---- catalogue ------------------------------------------------------
         var hardware = NewCategory(orgId, "Hardware", "HW", itTeam.Id, now);
         var software = NewCategory(orgId, "Software", "SW", itTeam.Id, now);
@@ -344,6 +370,151 @@ public static class DevelopmentSeeder
         foreach (var entry in DefaultPriorityMatrix(orgId, now))
         {
             db.PriorityMatrixEntries.Add(entry);
+        }
+
+        await db.SaveChangesAsync();
+
+        await SeedSlaAsync(db, organization, itTeam.Id, now);
+    }
+
+
+    /// <summary>
+    /// Seeds a working calendar, SLA targets and an escalation ladder.
+    /// </summary>
+    /// <remarks>
+    /// The targets are the conventional defaults: fifteen minutes to respond and two
+    /// hours to resolve a critical issue, widening to four hours and one working day
+    /// for a low one. They are measured in business minutes against the calendar
+    /// below, so a low-priority ticket raised on Friday afternoon is due mid-week
+    /// rather than on Saturday.
+    /// </remarks>
+    private static async Task SeedSlaAsync(
+        AppDbContext db, Organization organization, Guid defaultTeamId, DateTime now)
+    {
+        var orgId = organization.Id;
+
+        var calendar = new BusinessCalendar
+        {
+            OrganizationId = orgId,
+            Name = "Standard business hours",
+            Code = "STD",
+            Description = "Monday to Friday, 09:00 to 17:00, local to the organization.",
+            TimeZoneId = organization.TimeZoneId,
+            IsDefault = true,
+            CreatedAtUtc = now,
+        };
+
+        db.BusinessCalendars.Add(calendar);
+
+        foreach (var day in new[]
+                 {
+                     DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday,
+                     DayOfWeek.Thursday, DayOfWeek.Friday,
+                 })
+        {
+            db.BusinessHours.Add(new BusinessHour
+            {
+                OrganizationId = orgId,
+                CalendarId = calendar.Id,
+                DayOfWeek = day,
+                StartMinute = 9 * 60,
+                EndMinute = 17 * 60,
+                CreatedAtUtc = now,
+            });
+        }
+
+        // Two fixed-date holidays, enough to exercise the skipping logic without
+        // asserting anything about a particular country calendar.
+        db.Holidays.Add(new Holiday
+        {
+            OrganizationId = orgId,
+            CalendarId = calendar.Id,
+            Name = "New Year",
+            DateUtc = new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            IsRecurring = true,
+            CreatedAtUtc = now,
+        });
+
+        db.Holidays.Add(new Holiday
+        {
+            OrganizationId = orgId,
+            CalendarId = calendar.Id,
+            Name = "Labour Day",
+            DateUtc = new DateTime(now.Year, 5, 1, 0, 0, 0, DateTimeKind.Utc),
+            IsRecurring = true,
+            CreatedAtUtc = now,
+        });
+
+        var policy = new SlaPolicy
+        {
+            OrganizationId = orgId,
+            Name = "Standard support SLA",
+            Description = "Default response and resolution targets, measured in business hours.",
+            BusinessCalendarId = calendar.Id,
+            IsDefault = true,
+            PauseWhenWaitingOnOthers = true,
+            CreatedAtUtc = now,
+        };
+
+        db.SlaPolicies.Add(policy);
+
+        var targets = new (PriorityLevel Priority, int Response, int Resolution)[]
+        {
+            (PriorityLevel.Critical, 15, 120),
+            (PriorityLevel.High, 30, 240),
+            (PriorityLevel.Medium, 120, 480),
+            (PriorityLevel.Low, 240, 1440),
+        };
+
+        foreach (var (priority, response, resolution) in targets)
+        {
+            db.SlaTargets.Add(new SlaTarget
+            {
+                OrganizationId = orgId,
+                PolicyId = policy.Id,
+                Priority = priority,
+                ResponseMinutes = response,
+                ResolutionMinutes = resolution,
+                WarningThresholdPercent = 70,
+                CreatedAtUtc = now,
+            });
+        }
+
+        var escalation = new EscalationPolicy
+        {
+            OrganizationId = orgId,
+            Name = "Standard escalation ladder",
+            Description = "Warns the team lead, then the department manager as the budget runs out.",
+            IsDefault = true,
+            CreatedAtUtc = now,
+        };
+
+        db.EscalationPolicies.Add(escalation);
+
+        // Warn early enough to act, chase at the deadline, and keep chasing past it.
+        // A ladder that goes quiet at 100 percent abandons the ticket exactly when it
+        // most needs attention.
+        var steps = new (int Level, int Threshold, EscalationRecipient Recipient, bool ChangeStatus)[]
+        {
+            (1, 70, EscalationRecipient.AssignedAgent, false),
+            (2, 90, EscalationRecipient.TeamLead, false),
+            (3, 100, EscalationRecipient.TeamLead, true),
+            (4, 120, EscalationRecipient.DepartmentManager, false),
+        };
+
+        foreach (var (level, threshold, recipient, changeStatus) in steps)
+        {
+            db.EscalationSteps.Add(new EscalationStep
+            {
+                OrganizationId = orgId,
+                PolicyId = escalation.Id,
+                Level = level,
+                ThresholdPercent = threshold,
+                RecipientType = recipient,
+                RecipientTeamId = recipient == EscalationRecipient.TeamLead ? defaultTeamId : null,
+                ChangeTicketStatus = changeStatus,
+                CreatedAtUtc = now,
+            });
         }
 
         await db.SaveChangesAsync();

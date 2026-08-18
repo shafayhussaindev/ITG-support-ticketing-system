@@ -3,6 +3,9 @@ using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using SupportTicketing.Application.Abstractions;
 using SupportTicketing.Application.Dispatching;
+using SupportTicketing.Application.Features.Escalations;
+using SupportTicketing.Application.Features.Notifications;
+using SupportTicketing.Application.Features.Sla;
 
 namespace SupportTicketing.Application;
 
@@ -21,6 +24,14 @@ public static class DependencyInjection
         services.AddScoped<ICommandPipelineBehavior, ValidationBehavior>();
         services.AddScoped<ICommandPipelineBehavior, LoggingBehavior>();
         services.AddScoped<ICommandPipelineBehavior, TransactionBehavior>();
+
+        // SLA, escalation and notification services. All depend only on the
+        // Application abstractions, so they live here rather than in Infrastructure.
+        services.AddScoped<ISlaEventRecorder, SlaEventRecorder>();
+        services.AddScoped<ISlaEngine, SlaEngine>();
+        services.AddScoped<IEscalationEngine, EscalationEngine>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationChannel, InAppNotificationChannel>();
 
         RegisterHandlers(services, assembly, typeof(ICommandHandler<,>));
         RegisterHandlers(services, assembly, typeof(IQueryHandler<,>));
