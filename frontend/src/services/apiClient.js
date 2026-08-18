@@ -122,7 +122,10 @@ function ensureRefresh() {
  * expired-token 401 by rotating the refresh token and retrying once.
  */
 export async function apiRequest(path, options = {}) {
-  const { method = 'GET', body, signal, anonymous = false, retryOnUnauthorized = true } = options;
+  const {
+    method = 'GET', body, signal, anonymous = false, retryOnUnauthorized = true,
+    responseType = 'json',
+  } = options;
 
   const headers = {
     Accept: 'application/json',
@@ -183,8 +186,39 @@ export async function apiRequest(path, options = {}) {
     return null;
   }
 
+  if (responseType === 'blob') {
+    // Content-Disposition is the server's own name for the file. Reconstructing one
+    // on the client would drift from what the audit log recorded was downloaded.
+    const disposition = response.headers.get('Content-Disposition') ?? '';
+    const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+
+    return {
+      blob: await response.blob(),
+      fileName: match ? decodeURIComponent(match[1]) : 'download',
+    };
+  }
+
   const text = await response.text();
   return text ? JSON.parse(text) : null;
+}
+
+/**
+ * Saves a response body to the user's downloads.
+ *
+ * The object URL is revoked immediately afterwards; leaving them alive pins the whole
+ * blob in memory for the lifetime of the tab, which for a large export is real.
+ */
+export function saveBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(url);
 }
 
 export const api = {
@@ -193,4 +227,7 @@ export const api = {
   put: (path, body, options) => apiRequest(path, { ...options, method: 'PUT', body }),
   patch: (path, body, options) => apiRequest(path, { ...options, method: 'PATCH', body }),
   delete: (path, options) => apiRequest(path, { ...options, method: 'DELETE' }),
+
+  /** POSTs and resolves to { blob, fileName } for endpoints that answer with a file. */
+  download: (path, body) => apiRequest(path, { method: 'POST', body, responseType: 'blob' }),
 };

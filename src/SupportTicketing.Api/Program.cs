@@ -147,7 +147,10 @@ builder.Services.AddCors(options => options.AddPolicy(CorsPolicy, policy =>
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()
-        .WithExposedHeaders(HttpContextCurrentUser.CorrelationHeader);
+        // Content-Disposition carries the server's own name for an exported file.
+        // Without exposing it the browser hides the header cross-origin and every
+        // download lands as "download", losing the report name and timestamp.
+        .WithExposedHeaders(HttpContextCurrentUser.CorrelationHeader, "Content-Disposition");
 }));
 
 // ---------------------------------------------------------------- rate limiting

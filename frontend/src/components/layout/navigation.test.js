@@ -46,15 +46,23 @@ describe('visibleNavigation', () => {
 
   it('marks modules whose backend does not exist yet', () => {
     // Guards against a route being switched on in the navigation before its API is
-    // built, which would send testers to a page that cannot work. Reports is the
-    // current example: the screen is designed, the endpoint is not written.
-    const groups = visibleNavigation(permissionChecker('reports.view'));
+    // built, which would send testers to a page that cannot work. User management is
+    // the current example: the domain and tables exist, the endpoints do not.
+    const groups = visibleNavigation(permissionChecker('users.manage'));
 
-    const reports = groups
+    const users = groups
       .flatMap((g) => g.items)
-      .find((i) => i.to === '/reports');
+      .find((i) => i.to === '/admin/users');
 
-    expect(reports.available).toBe(false);
+    expect(users.available).toBe(false);
+  });
+
+  it('shows reports and the audit log as built', () => {
+    const groups = visibleNavigation(permissionChecker('reports.view', 'audit.view'));
+    const items = groups.flatMap((g) => g.items);
+
+    expect(items.find((i) => i.to === '/reports').available).toBe(true);
+    expect(items.find((i) => i.to === '/audit').available).toBe(true);
   });
 
   it('shows the knowledge base as built', () => {

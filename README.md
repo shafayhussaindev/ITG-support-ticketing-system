@@ -9,9 +9,10 @@ support and supplier support. ASP.NET Core 10 Web API, SQL Server, Clean Archite
 > calendars, the escalation ladder, notifications over SignalR, dashboards, the
 > knowledge base, satisfaction ratings, ERP record links and optional AI assistance are
 > implemented and covered by tests that run against a real SQL Server database.
+> Analytical reporting with CSV export and the audit log viewer are built too.
 > **Email intake is not built**, and the admin screens (users, roles, teams, catalog,
-> SLA policies) have no user interface yet — their API endpoints are partly present and
-> their routes say so plainly rather than showing a mock.
+> SLA policies) have no user interface yet — their routes say so plainly rather than
+> showing a mock.
 > See [Delivery status](#delivery-status) for exactly what exists.
 
 ---
@@ -320,6 +321,14 @@ audited decision. This is asserted by an integration test.
 | GET | `/api/v1/sla/policies` | `sla.view` | Policies with per-priority targets |
 | GET | `/api/v1/sla/escalations` | `escalation.view` | Escalations fired, with recipients |
 | GET | `/api/v1/dashboard` | Bearer | One endpoint; content follows the caller's data scope |
+| GET | `/api/v1/reports/sla-compliance` | `reports.view` | By priority, team and category; settled clocks only |
+| GET | `/api/v1/reports/agent-performance` | `reports.view` | Throughput beside reopens, breaches and CSAT |
+| GET | `/api/v1/reports/volume-trend` | `reports.view` | Raised, resolved, reopened and the resulting backlog |
+| GET | `/api/v1/reports/satisfaction` | `reports.view` | Distribution, response rate, by agent, with comments |
+| POST | `/api/v1/reports/export` | `reports.export` | CSV. Report name is an allowlist; the download is audited |
+| GET | `/api/v1/audit` | `audit.view` | Search the append-only log, denied actions included |
+| GET | `/api/v1/audit/filters` | `audit.view` | The values that actually occur, for the filter controls |
+| GET | `/api/v1/audit/entities/{id}` | `audit.view` | One entity's history, oldest first |
 | GET | `/api/v1/tickets/{id}/feedback` | Bearer | Satisfaction rating, if given |
 | POST | `/api/v1/tickets/{id}/feedback` | requester | One rating per ticket, editable by its author |
 | GET | `/api/v1/knowledge/articles` | `knowledge.view` | Search, filter, page |
@@ -334,7 +343,7 @@ audited decision. This is asserted by an integration test.
 | GET | `/health/live` | Anonymous | Liveness |
 | GET | `/health/ready` | Anonymous | Readiness, checks the database |
 
-42 endpoints across seven controllers. Errors are RFC 7807 Problem Details with a stable
+50 endpoints across nine controllers. Errors are RFC 7807 Problem Details with a stable
 `code` and a `correlationId`. Stack traces and SQL are never serialised.
 
 ---
@@ -345,14 +354,14 @@ audited decision. This is asserted by an integration test.
 dotnet test
 ```
 
-**191 backend tests and 23 frontend tests, all passing** as of the last run:
+**209 backend tests and 24 frontend tests, all passing** as of the last run:
 
 | Project | Tests | Covers |
 |---|---|---|
 | `SupportTicketing.UnitTests` | 94 | Password hashing, priority matrix, workflow graph, business-hours arithmetic including DST, SLA state machine |
 | `SupportTicketing.ArchitectureTests` | 7 | Layer dependencies, no entities on controllers, anonymous-endpoint allowlist, tenant-filter bypass allowlist, no SQL Server provider types in Application |
-| `SupportTicketing.IntegrationTests` | 90 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, reporting scope, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
-| `frontend` (Vitest) | 23 | Token store, single-flight refresh, navigation filtering, SLA formatting |
+| `SupportTicketing.IntegrationTests` | 108 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, report scoping, CSV export and formula neutralisation, audit filtering and tenant separation, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
+| `frontend` (Vitest) | 24 | Token store, single-flight refresh, navigation filtering, SLA formatting |
 
 Integration tests use a **real SQL Server database** (`SupportTicketing_IntegrationTests`,
 dropped and recreated per run), not the in-memory provider. Every defect found while
@@ -408,6 +417,18 @@ query filters — an in-memory double would have passed while the API was broken
 - Knowledge base with versioned articles, a review workflow, feedback and
   ticket-text suggestions
 - Satisfaction ratings, one per ticket, editable only by their author
+- **Four analytical reports** — SLA compliance broken down by priority, team and
+  category; agent performance showing throughput beside reopens, breaches and CSAT;
+  volume and backlog over time anchored to the real opening position; and satisfaction
+  with its response rate. Compliance counts settled clocks only, so a running clock
+  neither flatters nor damns the period
+- **CSV export** of any report or of the underlying ticket rows. The report name is
+  an allowlist rather than anything that reaches a table or column, values that a
+  spreadsheet would execute as a formula are neutralised, and every download is
+  written to the audit log
+- **Audit log viewer**: search by action, entity, person, correlation identifier or
+  free text, with denied actions kept and each row expandable to the field values,
+  reason, IP address and correlation identifier recorded with it
 
 **Phase 5 — business context and AI**
 
@@ -442,9 +463,10 @@ query filters — an in-memory double would have passed while the API was broken
 - **Admin screens.** Users, roles, teams, catalog, SLA policies and system settings
   have no UI. Their routes exist and say plainly that they are unimplemented.
 - **Attachments.** The table and domain entity exist; upload and download do not.
-- **Audit log viewer**, **report exports**, **approvals and parent–child tickets**,
-  **SMTP delivery** (notifications are stored and pushed over SignalR, not emailed),
-  **password change and reset**.
+- **Approvals and parent–child tickets**, **SMTP delivery** (notifications are stored
+  and pushed over SignalR, not emailed), **password change and reset**.
+- **Scheduled report delivery.** Reports are pulled on demand and exported by hand;
+  nothing emails a weekly summary.
 
 ### Known limitations
 

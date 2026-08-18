@@ -1,0 +1,233 @@
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-3);
+}
+
+.title { font-size: var(--fs-xl); font-weight: 700; margin: 0 0 2px; }
+
+.subtitle {
+  font-size: var(--fs-sm);
+  color: var(--c-text-2);
+  max-width: 70ch;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.control { display: inline-flex; }
+
+.select {
+  padding: 6px 9px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--c-border);
+  margin-bottom: var(--s-4);
+  overflow-x: auto;
+}
+
+.tab {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--c-text-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab:hover { color: var(--c-text); }
+
+.tabActive {
+  color: var(--c-primary-text);
+  border-bottom-color: var(--c-primary);
+}
+
+.tab:focus-visible { outline: 2px solid var(--c-focus); outline-offset: -2px; }
+
+.stack { display: flex; flex-direction: column; gap: var(--s-4); }
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--s-4);
+  align-items: start;
+}
+
+.summaryBody { display: flex; flex-direction: column; gap: 2px; }
+
+.summaryValue {
+  font-family: var(--font-mono);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--c-text);
+}
+
+.summaryLabel {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--c-text-3);
+}
+
+.summaryHint {
+  margin-top: var(--s-2);
+  font-size: var(--fs-xs);
+  color: var(--c-text-2);
+  line-height: 1.55;
+}
+
+.chart { height: 200px; }
+.tallChart { height: 260px; }
+
+.flush { padding: 0; }
+
+.tableWrap { overflow-x: auto; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.table th,
+.table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--c-border);
+  white-space: nowrap;
+}
+
+.table thead th {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--c-text-3);
+  background: var(--c-surface-2);
+  position: sticky;
+  top: 0;
+}
+
+.table tbody th { font-weight: 600; color: var(--c-text); }
+.table tbody tr:last-child th,
+.table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr:hover { background: var(--c-surface-2); }
+
+.muted { color: var(--c-text-3); }
+
+.breakdown {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.breakdownRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 34px;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-xs);
+}
+
+.breakdownLabel {
+  color: var(--c-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breakdownBar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--c-surface-3);
+  overflow: hidden;
+}
+
+.breakdownFill {
+  display: block;
+  height: 100%;
+  background: var(--c-primary);
+  border-radius: 3px;
+}
+
+.breakdownCount {
+  font-family: var(--font-mono);
+  text-align: right;
+  color: var(--c-text);
+}
+
+.comments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.comment {
+  padding: var(--s-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface-2);
+}
+
+.commentHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.commentTicket {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--c-primary-text);
+}
+
+.commentStars { font-size: var(--fs-sm); color: var(--c-warning); letter-spacing: 1px; }
+
+.commentSubject {
+  margin: 4px 0 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.commentBody {
+  margin: 4px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--c-text-2);
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .headerControls { width: 100%; }
+}

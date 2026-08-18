@@ -1,0 +1,84 @@
+using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
+using SupportTicketing.Api.Security;
+using SupportTicketing.Application.Abstractions;
+using SupportTicketing.Application.Features.Reporting;
+using SupportTicketing.Contracts.Reporting;
+using SupportTicketing.Domain.Identity;
+
+namespace SupportTicketing.Api.Controllers;
+
+[ApiController]
+[Route("api/v1/reports")]
+[Produces("application/json")]
+public sealed class ReportsController(IDispatcher dispatcher) : ControllerBase
+{
+    /// <summary>Response and resolution performance against target.</summary>
+    [HttpGet("sla-compliance")]
+    [HasPermission(Permissions.Reports.View)]
+    [SwaggerOperation(Summary = "SLA compliance", Description =
+        "Broken down by priority, team and category. Only settled clocks count towards "
+        + "compliance — a running clock has not yet failed, and counting it either way "
+        + "would misrepresent the month. Tickets with no SLA policy are excluded rather "
+        + "than treated as compliant.")]
+    [ProducesResponseType<SlaComplianceReport>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<SlaComplianceReport>> SlaCompliance(
+        [FromQuery] ReportQueryParameters parameters, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetSlaComplianceReportQuery(parameters), cancellationToken));
+
+    /// <summary>Throughput and quality per agent.</summary>
+    [HttpGet("agent-performance")]
+    [HasPermission(Permissions.Reports.View)]
+    [SwaggerOperation(Summary = "Agent performance", Description =
+        "Resolved counts appear beside reopen counts, SLA breaches and satisfaction, "
+        + "because volume on its own rewards closing tickets rather than fixing "
+        + "problems. Callers who can see only their own queue receive the period "
+        + "header and an empty table.")]
+    [ProducesResponseType<AgentPerformanceReport>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<AgentPerformanceReport>> AgentPerformance(
+        [FromQuery] ReportQueryParameters parameters, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetAgentPerformanceReportQuery(parameters), cancellationToken));
+
+    /// <summary>Raised against resolved over time, with the resulting backlog.</summary>
+    [HttpGet("volume-trend")]
+    [HasPermission(Permissions.Reports.View)]
+    [SwaggerOperation(Summary = "Volume and backlog", Description =
+        "The backlog line is anchored to the real open count at the start of the "
+        + "period, so it shows the queue growing even when raised and resolved are "
+        + "climbing together.")]
+    [ProducesResponseType<VolumeTrendReport>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<VolumeTrendReport>> VolumeTrend(
+        [FromQuery] ReportQueryParameters parameters, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetVolumeTrendReportQuery(parameters), cancellationToken));
+
+    /// <summary>Requester satisfaction, with the response rate that qualifies it.</summary>
+    [HttpGet("satisfaction")]
+    [HasPermission(Permissions.Reports.View)]
+    [SwaggerOperation(Summary = "Satisfaction", Description =
+        "The response rate is returned alongside the average because the two are only "
+        + "meaningful together.")]
+    [ProducesResponseType<SatisfactionReport>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<SatisfactionReport>> Satisfaction(
+        [FromQuery] ReportQueryParameters parameters, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetSatisfactionReportQuery(parameters), cancellationToken));
+
+    /// <summary>Downloads a report as CSV.</summary>
+    [HttpPost("export")]
+    [HasPermission(Permissions.Reports.Export)]
+    [Produces("text/csv")]
+    [SwaggerOperation(Summary = "Export a report as CSV", Description =
+        "The report name selects one of four handlers and never reaches a table or "
+        + "column name. The export obeys the caller's data scope exactly as the "
+        + "on-screen report does, and the download itself is written to the audit log.")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Export(
+        [FromBody] ReportExportRequest request, CancellationToken cancellationToken)
+    {
+        var file = await dispatcher.SendAsync(new ExportReportCommand(request), cancellationToken);
+
+        return File(file.Content, file.ContentType, file.FileName);
+    }
+}

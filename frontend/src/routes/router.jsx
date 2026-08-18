@@ -38,6 +38,14 @@ const KnowledgePage = lazy(() =>
   import('@/features/knowledge/KnowledgePage').then((m) => ({ default: m.KnowledgePage })),
 );
 
+const ReportsPage = lazy(() =>
+  import('@/features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
+);
+
+const AuditLogPage = lazy(() =>
+  import('@/features/audit/AuditLogPage').then((m) => ({ default: m.AuditLogPage })),
+);
+
 const AiSettingsPage = lazy(() =>
   import('@/features/admin/AiSettingsPage').then((m) => ({ default: m.AiSettingsPage })),
 );
@@ -56,24 +64,6 @@ function lazyRoute(element) {
  * makes the remaining work countable.
  */
 const planned = [
-  {
-    path: 'reports',
-    permission: 'reports.view',
-    title: 'Reports and analytics',
-    phase: 'Phase 4',
-    description:
-      'KPI cards and charts for volume, SLA compliance, response and resolution times, backlog, agent workload and CSAT, each drilling through to the underlying ticket list.',
-    endpoints: ['GET /api/v1/reports/dashboard', 'POST /api/v1/reports/export'],
-  },
-  {
-    path: 'audit',
-    permission: 'audit.view',
-    title: 'Audit log',
-    phase: 'Phase 4',
-    description:
-      'The immutable history. Every field change, status transition, assignment and permission change, filterable and exportable. The table already exists and is being written to today.',
-    endpoints: ['GET /api/v1/audit', 'GET /api/v1/audit/tickets/{id}/reconstruct'],
-  },
   {
     path: 'admin/users',
     permission: 'users.manage',
@@ -171,6 +161,18 @@ export const router = createBrowserRouter([
         path: 'knowledge/:id',
         element: (
           <ProtectedRoute permission="knowledge.view">{lazyRoute(<ArticlePage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'reports',
+        element: (
+          <ProtectedRoute permission="reports.view">{lazyRoute(<ReportsPage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'audit',
+        element: (
+          <ProtectedRoute permission="audit.view">{lazyRoute(<AuditLogPage />)}</ProtectedRoute>
         ),
       },
       {
