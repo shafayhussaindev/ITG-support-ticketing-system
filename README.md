@@ -300,6 +300,7 @@ audited decision. This is asserted by an integration test.
 | POST | `/api/v1/auth/login` | Anonymous | Rate limited, 10/min/IP by default |
 | POST | `/api/v1/auth/refresh` | Anonymous | Single-use rotation; replay revokes the family |
 | POST | `/api/v1/auth/logout` | Bearer | Current session, or all sessions |
+| POST | `/api/v1/auth/change-password` | Bearer | Requires the current password; revokes every session |
 | GET | `/api/v1/auth/me` | Bearer | Profile, roles, effective permissions |
 | GET | `/api/v1/tickets` | Bearer | Filter, sort, page. Rows limited by data scope |
 | POST | `/api/v1/tickets` | `ticket.create` | Priority calculated, never supplied |
@@ -361,7 +362,7 @@ audited decision. This is asserted by an integration test.
 | GET | `/health/live` | Anonymous | Liveness |
 | GET | `/health/ready` | Anonymous | Readiness, checks the database |
 
-94 endpoints across sixteen controllers; the table above lists the ones worth knowing
+95 endpoints across sixteen controllers; the table above lists the ones worth knowing
 about. Errors are RFC 7807 Problem Details with a stable `code` and a `correlationId`.
 Stack traces and SQL are never serialised.
 
@@ -373,13 +374,13 @@ Stack traces and SQL are never serialised.
 dotnet test
 ```
 
-**235 backend tests and 24 frontend tests, all passing** as of the last run:
+**243 backend tests and 24 frontend tests, all passing** as of the last run:
 
 | Project | Tests | Covers |
 |---|---|---|
 | `SupportTicketing.UnitTests` | 94 | Password hashing, priority matrix, workflow graph, business-hours arithmetic including DST, SLA state machine |
 | `SupportTicketing.ArchitectureTests` | 7 | Layer dependencies, no entities on controllers, anonymous-endpoint allowlist, tenant-filter bypass allowlist, no SQL Server provider types in Application |
-| `SupportTicketing.IntegrationTests` | 134 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, report scoping, CSV export and formula neutralisation, audit filtering, the whole administration surface including permission guards and secret masking, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
+| `SupportTicketing.IntegrationTests` | 142 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, report scoping, CSV export and formula neutralisation, audit filtering, the whole administration surface including permission guards and secret masking, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
 | `frontend` (Vitest) | 24 | Token store, single-flight refresh, navigation filtering, SLA formatting |
 
 Integration tests use a **real SQL Server database** (`SupportTicketing_IntegrationTests`,
@@ -404,6 +405,9 @@ query filters — an in-memory double would have passed while the API was broken
 - Serilog structured logging, correlation IDs, Problem Details, health checks,
   rate limiting, security headers, CORS allowlist, Swagger
 - Development-only seeder, double-gated, with two tenants and thirteen users
+- Self-service password change, and confinement of any account still using a password
+  an administrator issued: such a session can reach only its own profile, the change
+  endpoint and sign-out until it sets its own password
 
 **Phase 1–2 — identity and the ticket lifecycle**
 
@@ -509,8 +513,9 @@ query filters — an in-memory double would have passed while the API was broken
   in the Phase 5 brief and is not implemented; `TicketSource.Email` exists in the
   domain but no ingester writes it.
 - **Attachments.** The table and domain entity exist; upload and download do not.
-- **Approvals and parent–child tickets**, **SMTP delivery** (notifications are stored
-  and pushed over SignalR, not emailed), **password change and reset**.
+- **Approvals and parent–child tickets**, and **SMTP delivery** — notifications are
+  stored and shown in the app, but nothing is emailed, so an escalation reaches only
+  somebody who is already looking.
 - **Scheduled report delivery.** Reports are pulled on demand and exported by hand;
   nothing emails a weekly summary.
 

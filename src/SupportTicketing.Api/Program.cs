@@ -282,6 +282,12 @@ app.UseHttpsRedirection();
 app.UseCors(CorsPolicy);
 app.UseRateLimiter();
 app.UseAuthentication();
+
+// After authentication, before authorization: the check reads a claim from the
+// established principal, and it must run for every endpoint rather than only for
+// those an attribute was remembered on.
+app.UseMiddleware<PasswordChangeRequiredMiddleware>();
+
 app.UseAuthorization();
 
 app.MapControllers();

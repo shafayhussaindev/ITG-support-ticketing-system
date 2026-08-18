@@ -22,6 +22,14 @@ public sealed record LogoutRequest
     public bool AllSessions { get; init; }
 }
 
+/// <summary>
+/// A user replacing their own password.
+/// </summary>
+/// <remarks>
+/// The current password is required even though the caller is already authenticated:
+/// an access token can be sitting in an unattended browser, and asking again is what
+/// makes this a decision by the account holder rather than by whoever is at their desk.
+/// </remarks>
 public sealed record ChangePasswordRequest
 {
     public required string CurrentPassword { get; init; }

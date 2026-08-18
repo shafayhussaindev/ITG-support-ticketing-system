@@ -58,4 +58,15 @@ public static class AppClaims
     public const string OfficeId = "off";
     public const string FullName = "fullname";
     public const string TokenVersion = "tv";
+
+    /// <summary>
+    /// Present when the account is holding a password an administrator issued.
+    /// </summary>
+    /// <remarks>
+    /// Carried in the token so the check costs nothing per request. It only ever
+    /// removes capability, so a stale token cannot grant anything — the worst case is
+    /// that somebody is asked to change a password they have already changed, and the
+    /// next refresh clears it.
+    /// </remarks>
+    public const string MustChangePassword = "pwd";
 }

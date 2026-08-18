@@ -49,6 +49,11 @@ public sealed class TokenService(IOptions<JwtOptions> options, IClock clock) : I
             new(AppClaims.Scope, ((int)scope).ToString())
         };
 
+        if (user.MustChangePassword)
+        {
+            claims.Add(new Claim(AppClaims.MustChangePassword, "1"));
+        }
+
         if (user.DepartmentId is { } departmentId)
         {
             claims.Add(new Claim(AppClaims.DepartmentId, departmentId.ToString()));

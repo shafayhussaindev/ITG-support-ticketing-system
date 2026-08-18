@@ -40,5 +40,7 @@ export const authService = {
     }
   },
 
+  changePassword: (body) => api.post('/auth/change-password', body),
+
   me: () => api.get('/auth/me'),
 };

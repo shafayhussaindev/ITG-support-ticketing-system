@@ -67,6 +67,21 @@ public sealed class AuthController(IDispatcher dispatcher) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Replaces the caller's own password.</summary>
+    [HttpPost("change-password")]
+    [SwaggerOperation(Summary = "Change your password", Description =
+        "The current password is required even though the caller is authenticated: an "
+        + "access token can be sitting in an unattended browser, and asking again is "
+        + "what makes this a decision by the account holder. Succeeding revokes every "
+        + "session, this one included — if the reason for the change is that somebody "
+        + "else knew the old password, leaving their session alive would defeat it.")]
+    [ProducesResponseType<ChangePasswordResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ChangePasswordResult>> ChangePassword(
+        [FromBody] ChangePasswordRequest request, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(new ChangePasswordCommand(request), cancellationToken));
+
     /// <summary>Returns the signed-in user's profile, roles and effective permissions.</summary>
     [HttpGet("me")]
     [SwaggerOperation(Summary = "Current user", Description =

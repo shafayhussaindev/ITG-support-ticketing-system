@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/services/authService';
+import { ChangePasswordForm } from '@/features/auth/ChangePasswordPage';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -24,6 +25,7 @@ export function ProfilePage() {
   const navigate = useNavigate();
 
   const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [revoking, setRevoking] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -118,15 +120,25 @@ export function ProfilePage() {
             <div>
               <p className={s.rowTitle}>Password</p>
               <p className={s.rowNote}>
-                {user?.mustChangePassword
-                  ? 'A password change is required before you can continue.'
-                  : 'Changing your own password is not yet available. Ask your administrator to reset it.'}
+                Changing it signs out every session, this one included — if the reason
+                is that somebody else knows it, leaving their session alive would
+                defeat the exercise.
               </p>
             </div>
-            <Badge tone={user?.mustChangePassword ? 'warning' : 'neutral'}>
-              {user?.mustChangePassword ? 'Change required' : 'Current'}
-            </Badge>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setChangingPassword((open) => !open)}
+            >
+              {changingPassword ? 'Cancel' : 'Change password'}
+            </Button>
           </div>
+
+          {changingPassword ? (
+            <div className={s.passwordForm}>
+              <ChangePasswordForm />
+            </div>
+          ) : null}
 
           <div className={s.row}>
             <div>

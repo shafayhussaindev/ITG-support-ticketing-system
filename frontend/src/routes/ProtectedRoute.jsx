@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmptyState, LoadingState } from '@/components/ui';
+import { ChangePasswordPage } from '@/features/auth/ChangePasswordPage';
 
 /**
  * Gate for authenticated routes.
@@ -12,9 +13,13 @@ import { EmptyState, LoadingState } from '@/components/ui';
  * The optional permission check hides a route a user cannot use. It is convenience,
  * not security: the API applies the same check independently, so a user who edits
  * the URL still receives a 403 or 404 from the server.
+ *
+ * An account still on an administrator-issued password is shown the change screen in
+ * place of whatever it asked for. The API refuses everything else regardless; rendering
+ * the usual shell with every panel erroring would be a worse way to say the same thing.
  */
 export function ProtectedRoute({ children, permission }) {
-  const { isAuthenticated, isRestoring, can } = useAuth();
+  const { isAuthenticated, isRestoring, can, user } = useAuth();
   const location = useLocation();
 
   if (isRestoring) {
@@ -24,6 +29,10 @@ export function ProtectedRoute({ children, permission }) {
   if (!isAuthenticated) {
     // Remember where they were going so sign-in can send them back there.
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (user?.mustChangePassword) {
+    return <ChangePasswordPage />;
   }
 
   if (permission && !can(permission)) {
