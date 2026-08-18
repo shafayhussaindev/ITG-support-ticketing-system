@@ -3,12 +3,16 @@
 Enterprise support ticketing platform for internal IT, ERP application support, customer
 support and supplier support. ASP.NET Core 10 Web API, SQL Server, Clean Architecture.
 
-> **Current state: Phases 1 and 2 complete, with a working React frontend.**
-> Authentication, master data, and the full ticket lifecycle — creation, priority
-> calculation, routing, assignment, conversations with internal notes, resolution,
-> confirmation and reopening — are built and verified end to end in a browser.
-> SLA, escalation, notifications, reporting, the knowledge base and AI assistance are
-> **not built yet**. See [Delivery status](#delivery-status) for exactly what exists.
+> **Current state: Phases 1 to 5 built on the backend; the frontend covers the
+> day-to-day workflow but not administration.**
+> Authentication, master data, the full ticket lifecycle, the SLA engine with business
+> calendars, the escalation ladder, notifications over SignalR, dashboards, the
+> knowledge base, satisfaction ratings, ERP record links and optional AI assistance are
+> implemented and covered by tests that run against a real SQL Server database.
+> **Email intake is not built**, and the admin screens (users, roles, teams, catalog,
+> SLA policies) have no user interface yet — their API endpoints are partly present and
+> their routes say so plainly rather than showing a mock.
+> See [Delivery status](#delivery-status) for exactly what exists.
 
 ---
 
@@ -40,6 +44,18 @@ dotnet user-secrets set "Seed:DemoPassword" "<password for the demo accounts>" -
 
 If `Seed:DemoPassword` is omitted the seeder generates a random password and prints it
 to the console once. It never falls back to a guessable default.
+
+AI assistance is optional. Without a key the system runs identically — every AI call
+reports itself unavailable and the deterministic answer stands. To enable it:
+
+```bash
+dotnet user-secrets set "OpenAi:ApiKey" "<your key>" --project src/SupportTicketing.Api
+```
+
+The key stays on the server. It is never sent to the browser, never stored in the
+database, and the React app has no code path that could reach a provider directly.
+Capabilities remain off until an administrator turns them on at **Administration → AI
+assistance**, and each organization has its own switches.
 
 The connection string defaults to `Server=.;Database=SupportTicketing;Trusted_Connection=True`
 in `appsettings.Development.json`. Override it with the
@@ -296,14 +312,30 @@ audited decision. This is asserted by an integration test.
 | GET | `/api/v1/tickets/{id}/comments` | Bearer | Internal notes filtered at the database |
 | POST | `/api/v1/tickets/{id}/comments` | reply / note | `isInternal` needs `ticket.internal_note` |
 | GET | `/api/v1/tickets/{id}/timeline` | Bearer | Lifecycle rebuilt from append-only history |
+| POST | `/api/v1/tickets/{id}/related-records` | `ticket.link_records` | Links a purchase order, shipment, style… |
+| DELETE | `/api/v1/tickets/{id}/related-records/{recordId}` | `ticket.link_records` | Archives the link, never erases it |
+| GET | `/api/v1/tickets/by-record` | Bearer | Other tickets against the same ERP record |
+| GET | `/api/v1/tickets/{id}/sla` | Bearer | Clock state, targets, elapsed and remaining |
+| GET | `/api/v1/tickets/{id}/sla/events` | Bearer | Every pause, resume, breach and settlement |
+| GET | `/api/v1/sla/policies` | `sla.view` | Policies with per-priority targets |
+| GET | `/api/v1/sla/escalations` | `escalation.view` | Escalations fired, with recipients |
+| GET | `/api/v1/dashboard` | Bearer | One endpoint; content follows the caller's data scope |
+| GET | `/api/v1/tickets/{id}/feedback` | Bearer | Satisfaction rating, if given |
+| POST | `/api/v1/tickets/{id}/feedback` | requester | One rating per ticket, editable by its author |
+| GET | `/api/v1/knowledge/articles` | `knowledge.view` | Search, filter, page |
+| POST | `/api/v1/knowledge/articles` | `knowledge.author` | Draft; publishing is a separate transition |
+| GET | `/api/v1/knowledge/suggestions` | `knowledge.view` | Relevant articles for ticket text |
+| POST | `/api/v1/ai/tickets/{id}/priority-recommendation` | `ai.use` | Suggestion only; the matrix still decides |
+| GET | `/api/v1/ai/status` | `ai.configure` | Capability flags and this month's usage and cost |
+| PUT | `/api/v1/ai/configuration` | `ai.configure` | Per-organization switches, audited |
 | GET | `/api/v1/categories` | Bearer | Categories with subcategories |
 | GET | `/api/v1/applications` | Bearer | Applications with modules |
 | GET | `/api/v1/agents` | `ticket.assign` | Assignable agents with open-ticket counts |
 | GET | `/health/live` | Anonymous | Liveness |
 | GET | `/health/ready` | Anonymous | Readiness, checks the database |
 
-Errors are RFC 7807 Problem Details with a stable `code` and a `correlationId`. Stack
-traces and SQL are never serialised.
+42 endpoints across seven controllers. Errors are RFC 7807 Problem Details with a stable
+`code` and a `correlationId`. Stack traces and SQL are never serialised.
 
 ---
 
@@ -313,17 +345,18 @@ traces and SQL are never serialised.
 dotnet test
 ```
 
-**46 tests, all passing** as of the last run:
+**191 backend tests and 23 frontend tests, all passing** as of the last run:
 
 | Project | Tests | Covers |
 |---|---|---|
-| `SupportTicketing.UnitTests` | 18 | Password hashing, TOTP validation |
-| `SupportTicketing.ArchitectureTests` | 7 | Layer dependencies, no entities on controllers, anonymous-endpoint allowlist, tenant-filter bypass allowlist |
-| `SupportTicketing.IntegrationTests` | 21 | Full auth flow against a real SQL Server database |
+| `SupportTicketing.UnitTests` | 94 | Password hashing, priority matrix, workflow graph, business-hours arithmetic including DST, SLA state machine |
+| `SupportTicketing.ArchitectureTests` | 7 | Layer dependencies, no entities on controllers, anonymous-endpoint allowlist, tenant-filter bypass allowlist, no SQL Server provider types in Application |
+| `SupportTicketing.IntegrationTests` | 90 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, reporting scope, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
+| `frontend` (Vitest) | 23 | Token store, single-flight refresh, navigation filtering, SLA formatting |
 
 Integration tests use a **real SQL Server database** (`SupportTicketing_IntegrationTests`,
 dropped and recreated per run), not the in-memory provider. Every defect found while
-building this feature reproduced only against a provider that actually applies global
+building this system reproduced only against a provider that actually applies global
 query filters — an in-memory double would have passed while the API was broken.
 
 ---
@@ -332,46 +365,104 @@ query filters — an in-memory double would have passed while the API was broken
 
 ### Built and verified
 
+**Platform**
+
 - Solution scaffold, central package management, layering enforced by tests
-- Domain model: organizations, offices, departments, users, roles, permissions,
-  teams, skills, categories, applications, priority matrix, audit log, settings
-- 22 tables, 23 foreign keys, 21 unique indexes, 4 check constraints, applied to a
-  real SQL Server database via two EF Core migrations
+- 54 tables applied to a real SQL Server database through six EF Core migrations
 - JWT authentication with rotating refresh tokens and reuse detection
-- Permission-based authorization with a runtime-materialised policy provider
-- Global tenant filtering and soft deletion
+- Permission-based authorization: 55 permission keys, a runtime-materialised policy
+  provider, and six data scopes. Nothing in the codebase branches on a role name
+- Global tenant filtering, fail-closed, plus soft deletion and append-only history
 - Serilog structured logging, correlation IDs, Problem Details, health checks,
   rate limiting, security headers, CORS allowlist, Swagger
-- Development-only seeder with two tenants and thirteen users
-- **Ticket lifecycle**: creation with matrix-calculated priority, concurrency-safe
-  numbering, category-driven routing, assignment and acceptance, the full status
-  workflow with transition validation, conversations with internal notes, resolution,
-  requester confirmation and reopening — each step writing append-only history
-- **Timeline reconstruction** attributing every change to a person, a rule or a job
-- React frontend: sign-in, role-aware dashboard, ticket list with URL-backed filters,
+- Development-only seeder, double-gated, with two tenants and thirteen users
+
+**Phase 1–2 — identity and the ticket lifecycle**
+
+- Organizations, offices, departments, users, roles, permissions, teams, skills,
+  categories, applications, modules, the priority matrix, tags and settings
+- Ticket creation with matrix-calculated priority, concurrency-safe numbering
+  (`TKT-2026-000001`, allocated by an atomic `UPDATE … OUTPUT`), category-driven
+  routing, assignment and acceptance, the full status workflow with transition
+  validation, conversations with internal notes, resolution, requester confirmation
+  and reopening — each step writing append-only history
+- Timeline reconstruction attributing every change to a person, a rule, AI or a job
+
+**Phase 3 — service levels**
+
+- SLA policies and per-priority response and resolution targets
+- Business calendars: working hours, weekends and holidays, with DST-correct
+  arithmetic. An empty calendar means continuous cover rather than no cover
+- Clocks that pause while a ticket waits on the requester or a third party, and
+  recalculate on priority change without ever rebasing the start
+- An escalation ladder whose recipients are resolved by role at firing time, with
+  idempotency enforced by unique index rather than by hoping the sweep runs once
+- Notifications with per-user preferences, delivery records and SignalR push
+
+**Phase 4 — insight**
+
+- One dashboard endpoint whose content follows the caller's data scope: twelve KPIs,
+  volume over time, breakdowns by priority, status and category, and agent workload
+  weighted by priority
+- Every chart segment drills through to the ticket list using the same filter it counted
+- Knowledge base with versioned articles, a review workflow, feedback and
+  ticket-text suggestions
+- Satisfaction ratings, one per ticket, editable only by their author
+
+**Phase 5 — business context and AI**
+
+- ERP record links: purchase order, style, customer, supplier, factory, merchant,
+  production order, inspection, shipment, invoice, debit note, commission invoice and
+  Digital Product Passport. References and optional deep links are stored — never a
+  copy of ERP data, so there is no second source of truth to drift
+- "Which other tickets concern this purchase order?" answered through the scoped
+  ticket list, so it cannot reveal tickets the caller may not see
+- Optional AI assistance behind per-organization switches that are **off by default**:
+  a provider client with a circuit breaker, timeout and schema validation; usage and
+  cost recorded per call including failures; and prompts that carry only subject,
+  description, impact and urgency. Only a hash of the input is stored, never the text
+- The deterministic priority matrix runs **first** and remains the answer of record.
+  AI never writes to the database, never bypasses authorization, and reports itself
+  unavailable rather than silently substituting the rule's answer
+
+**Frontend**
+
+- Sign-in, role-aware dashboard with Recharts, ticket list with URL-backed filters,
   a creation form that shows calculated priority without letting anyone pick it,
-  ticket detail with conversation and history, profile with session revocation,
-  permission-filtered navigation, light/dark themes, responsive layout
+  ticket detail with conversation, SLA panel, escalation history, business context,
+  AI suggestions and satisfaction, an escalations queue, the knowledge base, a profile
+  with session revocation, and the AI settings screen
+- Permission-filtered navigation, light and dark themes, responsive layout
 
 ### Not built yet
 
-Attachments, work logs, SLA engine, business calendars, escalations, notifications,
-SignalR, approvals, knowledge base, satisfaction ratings, reporting, ERP-related
-record links and AI assistance. Frontend routes for these exist and state plainly that
-they are unimplemented.
+- **Email intake.** Nothing reads a mailbox or turns a reply into a comment. This was
+  in the Phase 5 brief and is not implemented; `TicketSource.Email` exists in the
+  domain but no ingester writes it.
+- **Admin screens.** Users, roles, teams, catalog, SLA policies and system settings
+  have no UI. Their routes exist and say plainly that they are unimplemented.
+- **Attachments.** The table and domain entity exist; upload and download do not.
+- **Audit log viewer**, **report exports**, **approvals and parent–child tickets**,
+  **SMTP delivery** (notifications are stored and pushed over SignalR, not emailed),
+  **password change and reset**.
 
 ### Known limitations
 
+- **The OpenAI code path has never run against the live API.** No key is configured on
+  this machine, so every AI test exercises the unavailable branch — which is the branch
+  that matters for correctness, but the success path is unproven against a real
+  provider. Treat it as written-and-reviewed, not verified.
 - **EF Core emits six warnings at startup** about required navigations on filtered
-  entities (`RefreshToken`→`User`, `UserRole`→`Role`, and four similar). These are
-  benign given `BeginTenantScope`, but the durable fix is to make the join entities
-  tenant-owned so their filters match. Worth doing before ticketing lands.
+  entities. Benign given `BeginTenantScope`; the durable fix is to make the join
+  entities tenant-owned so their filters match.
 - **Permissions are embedded in the access token.** A permission revoked mid-session
   stays effective until the token expires, which is why the lifetime defaults to 15
   minutes. Immediate revocation requires deactivating the user or revoking their
   refresh-token families.
+- **The refresh token is held in `localStorage`**, which is readable by any script that
+  achieves XSS. The access token is kept in memory only. A `Secure`/`HttpOnly` cookie
+  would be stronger and needs a same-site deployment topology to be practical.
 - No Docker configuration — Docker is not installed on the build machine.
-- `Workers` and `Contracts` are scaffolded but largely empty.
 
 ---
 
@@ -391,13 +482,16 @@ they are unimplemented.
 
 ## Database
 
-Two migrations applied:
+Six migrations applied:
 
 | Migration | Purpose |
 |---|---|
 | `InitialIdentityAndMasterData` | 22 tables, indexes, constraints |
 | `FixSystemSettingsUniqueIndex` | Removes EF's automatic `IS NOT NULL` filter so duplicate global settings keys are actually prevented |
 | `TicketingCore` | 11 ticket tables — tickets, comments, mentions, attachments, assignments, status and priority history, work logs, related records, tags, number sequences |
+| `SlaEscalationsAndNotifications` | Business calendars, hours, holidays, SLA policies, targets, ticket clocks, SLA events, escalation policies, steps and history, notifications, deliveries and preferences |
+| `KnowledgeBaseAndSatisfaction` | Knowledge articles, versions, feedback and satisfaction ratings |
+| `AiAssistance` | AI configuration, prompt templates, recommendations and append-only usage records |
 
 To roll back:
 

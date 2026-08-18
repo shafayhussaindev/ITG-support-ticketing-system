@@ -159,4 +159,44 @@ public sealed class TicketsController(IDispatcher dispatcher) : ControllerBase
     public async Task<ActionResult<IReadOnlyList<TicketTimelineEntry>>> Timeline(
         Guid id, CancellationToken cancellationToken) =>
         Ok(await dispatcher.QueryAsync(new GetTicketTimelineQuery(id), cancellationToken));
+
+    /// <summary>Links a ticket to a record in an operational system.</summary>
+    [HttpPost("{id:guid}/related-records")]
+    [HasPermission(Permissions.Tickets.LinkRecords)]
+    [SwaggerOperation(Summary = "Link a business record", Description =
+        "Stores a reference — type, identifier and optional deep link — rather than a "
+        + "copy of ERP data, so there is never a second source of truth to drift.")]
+    [ProducesResponseType<RelatedRecordResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<RelatedRecordResponse>> AddRelatedRecord(
+        Guid id, [FromBody] RelatedRecordRequest request, CancellationToken cancellationToken)
+    {
+        var record = await dispatcher.SendAsync(new AddRelatedRecordCommand(id, request), cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, record);
+    }
+
+    /// <summary>Unlinks a business record. The link is archived, never erased.</summary>
+    [HttpDelete("{id:guid}/related-records/{recordId:guid}")]
+    [HasPermission(Permissions.Tickets.LinkRecords)]
+    [SwaggerOperation(Summary = "Unlink a business record")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RemoveRelatedRecord(
+        Guid id, Guid recordId, CancellationToken cancellationToken)
+    {
+        await dispatcher.SendAsync(new RemoveRelatedRecordCommand(id, recordId), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>Finds other tickets referencing the same operational record.</summary>
+    [HttpGet("by-record")]
+    [SwaggerOperation(Summary = "Tickets referencing a business record", Description =
+        "Answers whether anyone else has reported a problem with this purchase order or "
+        + "shipment. Scoped through the ticket list, so it cannot reveal hidden tickets.")]
+    [ProducesResponseType<IReadOnlyList<TicketListItemResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<TicketListItemResponse>>> ByRecord(
+        [FromQuery] string recordType,
+        [FromQuery] string recordReference,
+        CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(
+            new FindTicketsByRecordQuery(recordType, recordReference), cancellationToken));
 }

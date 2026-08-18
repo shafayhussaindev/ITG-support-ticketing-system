@@ -14,6 +14,8 @@ import { formatDateTime, formatRelative } from '@/utils/datetime';
 import { Conversation } from './Conversation';
 import { SlaPanel } from './SlaPanel';
 import { SatisfactionPanel } from './SatisfactionPanel';
+import { BusinessContextPanel } from './BusinessContextPanel';
+import { AiSuggestionPanel } from './AiSuggestionPanel';
 import s from './TicketDetailPage.module.css';
 
 export function TicketDetailPage() {
@@ -215,6 +217,10 @@ export function TicketDetailPage() {
           />
 
           <SlaPanel ticketId={id} />
+
+          <BusinessContextPanel ticketId={id} records={ticket.relatedRecords ?? []} />
+
+          <AiSuggestionPanel ticketId={id} currentPriority={ticket.priority} />
 
           <Card>
             <CardHeader title="Details" />

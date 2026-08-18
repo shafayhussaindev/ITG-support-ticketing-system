@@ -38,6 +38,10 @@ const KnowledgePage = lazy(() =>
   import('@/features/knowledge/KnowledgePage').then((m) => ({ default: m.KnowledgePage })),
 );
 
+const AiSettingsPage = lazy(() =>
+  import('@/features/admin/AiSettingsPage').then((m) => ({ default: m.AiSettingsPage })),
+);
+
 const ArticlePage = lazy(() =>
   import('@/features/knowledge/ArticlePage').then((m) => ({ default: m.ArticlePage })),
 );
@@ -167,6 +171,12 @@ export const router = createBrowserRouter([
         path: 'knowledge/:id',
         element: (
           <ProtectedRoute permission="knowledge.view">{lazyRoute(<ArticlePage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/ai',
+        element: (
+          <ProtectedRoute permission="ai.configure">{lazyRoute(<AiSettingsPage />)}</ProtectedRoute>
         ),
       },
       {

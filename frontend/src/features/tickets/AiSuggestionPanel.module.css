@@ -1,0 +1,47 @@
+.intro {
+  font-size: var(--fs-xs);
+  color: var(--c-text-2);
+  line-height: 1.55;
+  margin-bottom: var(--s-3);
+}
+
+.fallback { display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; }
+
+.fallbackText {
+  font-size: var(--fs-xs);
+  color: var(--c-text-2);
+  line-height: 1.55;
+}
+
+.result { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.rowLabel {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--c-text-3);
+  min-width: 84px;
+}
+
+.none { font-size: var(--fs-xs); color: var(--c-text-3); font-style: italic; }
+
+.explanation {
+  font-size: var(--fs-xs);
+  color: var(--c-text-2);
+  line-height: 1.55;
+  padding: var(--s-2);
+  border-radius: var(--r-md);
+  background: var(--c-surface-2);
+}
+
+.agrees { font-size: var(--fs-xs); color: var(--c-success-text); font-weight: 600; }
+.differs { font-size: var(--fs-xs); color: var(--c-warning-text); line-height: 1.5; }
+.current { font-size: var(--fs-xs); color: var(--c-text-3); }

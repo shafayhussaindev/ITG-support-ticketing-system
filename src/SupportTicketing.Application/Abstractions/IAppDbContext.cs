@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using SupportTicketing.Domain.Ai;
 using SupportTicketing.Domain.Auditing;
 using SupportTicketing.Domain.Catalog;
 using SupportTicketing.Domain.Identity;
@@ -82,6 +83,11 @@ public interface IAppDbContext
     DbSet<KnowledgeArticleVersion> KnowledgeArticleVersions { get; }
     DbSet<KnowledgeFeedback> KnowledgeFeedback { get; }
     DbSet<SatisfactionRating> SatisfactionRatings { get; }
+
+    DbSet<AiConfiguration> AiConfigurations { get; }
+    DbSet<AiPromptTemplate> AiPromptTemplates { get; }
+    DbSet<AiRecommendation> AiRecommendations { get; }
+    DbSet<AiUsageRecord> AiUsageRecords { get; }
 
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<SystemSetting> SystemSettings { get; }

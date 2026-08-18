@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SupportTicketing.Application.Abstractions;
+using SupportTicketing.Domain.Ai;
 using SupportTicketing.Domain.Auditing;
 using SupportTicketing.Domain.Catalog;
 using SupportTicketing.Domain.Common;
@@ -102,6 +103,11 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<KnowledgeArticleVersion> KnowledgeArticleVersions => Set<KnowledgeArticleVersion>();
     public DbSet<KnowledgeFeedback> KnowledgeFeedback => Set<KnowledgeFeedback>();
     public DbSet<SatisfactionRating> SatisfactionRatings => Set<SatisfactionRating>();
+
+    public DbSet<AiConfiguration> AiConfigurations => Set<AiConfiguration>();
+    public DbSet<AiPromptTemplate> AiPromptTemplates => Set<AiPromptTemplate>();
+    public DbSet<AiRecommendation> AiRecommendations => Set<AiRecommendation>();
+    public DbSet<AiUsageRecord> AiUsageRecords => Set<AiUsageRecord>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();

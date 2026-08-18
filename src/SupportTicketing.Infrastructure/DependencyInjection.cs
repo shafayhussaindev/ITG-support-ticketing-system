@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using SupportTicketing.Application.Abstractions;
+using SupportTicketing.Application.Features.Ai;
+using SupportTicketing.Infrastructure.Ai;
 using SupportTicketing.Infrastructure.Auditing;
 using SupportTicketing.Infrastructure.Persistence;
 using SupportTicketing.Infrastructure.Persistence.Interceptors;
@@ -27,6 +30,29 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<ITicketNumberGenerator, TicketNumberGenerator>();
+
+        // AI. The options bind even with no key present: OpenAiService reports itself
+        // unconfigured and every caller falls back to its deterministic answer, so the
+        // system runs identically whether or not a provider is wired up.
+        services.AddOptions<OpenAiOptions>()
+            .Bind(configuration.GetSection(OpenAiOptions.SectionName))
+            .ValidateDataAnnotations();
+
+        services.AddHttpClient("openai", (provider, client) =>
+        {
+            var ai = provider.GetRequiredService<IOptions<OpenAiOptions>>().Value;
+
+            client.BaseAddress = new Uri(ai.BaseUrl.TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(ai.TimeoutSeconds);
+
+            if (ai.IsConfigured)
+            {
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ai.ApiKey);
+            }
+        });
+
+        services.AddScoped<IAiService, OpenAiService>();
         services.AddScoped<AuditingInterceptor>();
 
         services.AddOptions<JwtOptions>()

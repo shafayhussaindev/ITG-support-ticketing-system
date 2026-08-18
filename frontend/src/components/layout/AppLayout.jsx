@@ -103,7 +103,7 @@ export function AppLayout() {
         <div className={s.sidebarFooter}>
           {user?.organizationName}
           <br />
-          Phase 1 build
+          Phase 5 build
         </div>
       </aside>
 

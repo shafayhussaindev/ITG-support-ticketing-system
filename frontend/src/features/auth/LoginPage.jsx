@@ -131,7 +131,7 @@ export function LoginPage() {
           </ul>
         </div>
 
-        <p className={s.asideFoot}>Phase 1 build — authentication and master data</p>
+        <p className={s.asideFoot}>Phase 5 build — tickets, SLA, reporting, knowledge base and AI assistance</p>
       </aside>
 
       <div className={s.panel}>
