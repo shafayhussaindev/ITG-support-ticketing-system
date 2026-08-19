@@ -85,6 +85,18 @@ jobs:
           path: artifacts/test-results
           retention-days: 14
 
+      # A dependency that was clean when it was added does not stay clean. This is the
+      # only check here that can start failing without anybody touching the code, which
+      # is exactly the point — an advisory published today should break the build
+      # tomorrow rather than wait for somebody to think to look.
+      - name: Audit NuGet dependencies
+        run: |
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee audit.txt
+          if grep -qiE '>\s*[A-Za-z].*(Low|Moderate|High|Critical)' audit.txt; then
+            echo "::error::Vulnerable NuGet packages found. See the table above."
+            exit 1
+          fi
+
       # Proves the schema can be built from nothing, which is what a client's server
       # actually does. A migration that only works against a database already in the
       # right shape passes every test and fails on the one install that matters.
@@ -142,6 +154,11 @@ jobs:
       # package.json and the lockfile disagree, which is the point of committing one.
       - name: Install
         run: npm ci
+
+      # Production dependencies only. A vulnerability in a build-time tool does not
+      # ship to a browser, and failing the build on one trains people to ignore this.
+      - name: Audit npm dependencies
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Test
         run: npx vitest run --reporter=default
