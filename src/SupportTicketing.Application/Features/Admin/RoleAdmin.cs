@@ -19,6 +19,7 @@ public sealed class ListRolesQueryHandler(IAppDbContext db, ICurrentUser current
 
         var roles = await db.Roles.AsNoTracking()
             .OrderByDescending(r => r.Rank)
+            .ThenBy(r => r.Name)
             .Select(r => new RoleResponse
             {
                 Id = r.Id,
@@ -125,6 +126,7 @@ public sealed class CreateRoleCommandHandler(
             cancellationToken: cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
+        await RoleRanking.NormaliseAsync(db, cancellationToken);
 
         var roles = await dispatcher.QueryAsync(new ListRolesQuery(), cancellationToken);
         return roles.First(r => r.Id == role.Id);
@@ -217,6 +219,7 @@ public sealed class UpdateRoleCommandHandler(
             cancellationToken: cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
+        await RoleRanking.NormaliseAsync(db, cancellationToken);
 
         var roles = await dispatcher.QueryAsync(new ListRolesQuery(), cancellationToken);
         return roles.First(r => r.Id == role.Id);
@@ -345,5 +348,66 @@ public sealed class DeleteRoleCommandHandler(
         await db.SaveChangesAsync(cancellationToken);
 
         return true;
+    }
+}
+
+/// <summary>
+/// Keeps role ranks evenly spaced.
+/// </summary>
+internal static class RoleRanking
+{
+    /// <summary>The gap left between neighbours, and the rank of the lowest role.</summary>
+    internal const int Step = 10;
+
+    /// <summary>
+    /// Re-spaces every role to 10, 20, 30 … in its existing order.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Rank is an ordering hint and nothing else — no authorization check reads it — so
+    /// renumbering costs nothing and changes no behaviour. What it buys is the guarantee
+    /// that two neighbouring roles always have integers between them.
+    /// </para>
+    /// <para>
+    /// That guarantee is what lets an administrator say "put this one between Manager
+    /// and Team Lead" instead of inventing a number. The position is turned into a rank
+    /// half way between its neighbours, and without re-spacing the gap halves on every
+    /// insertion: 10, 5, 2, 1, and then there is nowhere left to put anything and two
+    /// roles collide. Re-spacing afterwards means the next insertion always has room.
+    /// </para>
+    /// <para>
+    /// Ties are broken by name so the order is deterministic. Two roles that somehow
+    /// arrived at the same rank would otherwise be re-spaced differently on each call,
+    /// and the ladder would appear to shuffle itself.
+    /// </para>
+    /// </remarks>
+    internal static async Task NormaliseAsync(IAppDbContext db, CancellationToken cancellationToken)
+    {
+        var roles = await db.Roles.AsTracking()
+            .OrderBy(r => r.Rank)
+            .ThenBy(r => r.Name)
+            .ToListAsync(cancellationToken);
+
+        var changed = false;
+
+        for (var i = 0; i < roles.Count; i++)
+        {
+            var rank = (i + 1) * Step;
+
+            if (roles[i].Rank == rank)
+            {
+                continue;
+            }
+
+            roles[i].Rank = rank;
+            changed = true;
+        }
+
+        // Saving unconditionally would write an audit-free update on every role edit,
+        // including the overwhelmingly common case where nothing moved.
+        if (changed)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
     }
 }

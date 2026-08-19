@@ -250,6 +250,77 @@ public class AdministrationTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Repeated_insertion_into_the_same_gap_never_runs_out_of_room()
+    {
+        var admin = await SignInAsync("admin@itg.test");
+
+        async Task<IReadOnlyList<RoleResponse>> LadderAsync() =>
+            await ReadAsync<IReadOnlyList<RoleResponse>>(await admin.GetAsync("/api/v1/admin/roles"));
+
+        var created = new List<Guid>();
+
+        try
+        {
+            // The interface offers "between X and Y" and turns it into the midpoint of
+            // their two ranks. Left alone the gap halves every time — 10, 5, 2, 1 — and
+            // the fifth insertion has nowhere to go. Five rounds is one more than the
+            // unspaced ladder could survive.
+            for (var round = 1; round <= 5; round++)
+            {
+                var before = await LadderAsync();
+
+                var above = before.Single(r => r.Name == "Manager");
+                var below = before.First(r => r.Rank < above.Rank);
+
+                // Exactly what buildPositions computes in the browser.
+                var midpoint = (int)Math.Round((above.Rank + below.Rank) / 2.0);
+
+                midpoint.ShouldBeGreaterThan(below.Rank,
+                    $"round {round}: no room left between {above.Name} and {below.Name}");
+                midpoint.ShouldBeLessThan(above.Rank,
+                    $"round {round}: no room left between {above.Name} and {below.Name}");
+
+                var role = await ReadAsync<RoleResponse>(
+                    await admin.PostAsJsonAsync("/api/v1/admin/roles", new CreateRoleRequest
+                    {
+                        Name = $"Interposed {round}",
+                        DefaultScope = "Organization",
+                        Rank = midpoint,
+                        PermissionKeys = ["ticket.view_own"],
+                    }));
+
+                created.Add(role.Id);
+
+                var after = await LadderAsync();
+
+                // Re-spaced, so the next round has a whole gap to aim at again.
+                after.Select(r => r.Rank).ShouldAllBe(rank => rank % 10 == 0);
+                after.Select(r => r.Rank).Distinct().Count().ShouldBe(after.Count);
+
+                // And the role landed where it was asked to go, not merely somewhere.
+                var placed = after.Select(r => r.Name).ToList();
+                placed.IndexOf($"Interposed {round}")
+                    .ShouldBeGreaterThan(placed.IndexOf("Manager"),
+                        $"round {round}: should sit below Manager");
+                placed.IndexOf($"Interposed {round}")
+                    .ShouldBeLessThan(placed.IndexOf(below.Name),
+                        $"round {round}: should sit above {below.Name}");
+            }
+
+            // Highest authority first, with no ties to make the order ambiguous.
+            var ladder = await LadderAsync();
+            ladder.Select(r => r.Rank).ShouldBeInOrder(SortDirection.Descending);
+        }
+        finally
+        {
+            foreach (var id in created)
+            {
+                await admin.DeleteAsync($"/api/v1/admin/roles/{id}");
+            }
+        }
+    }
+
+    [Fact]
     public async Task Setting_a_users_roles_replaces_them_wholesale()
     {
         var admin = await SignInAsync("admin@itg.test");

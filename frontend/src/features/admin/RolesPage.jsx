@@ -5,7 +5,67 @@ import { useToast } from '@/contexts/ToastContext';
 import { Badge, Button, Card, CardBody, CardHeader, ErrorState, LoadingState } from '@/components/ui';
 import s from './admin.module.css';
 
-const BLANK_ROLE = { name: '', description: '', defaultScope: 'Own', rank: 10 };
+const BLANK_ROLE = { name: '', description: '', defaultScope: 'Own' };
+
+/**
+ * Turns the role ladder into the places a role can sit in it.
+ *
+ * An administrator knows their organization's hierarchy by name — a new role belongs
+ * above the Support Agent, or below the Manager. They have no way of knowing that the
+ * system stores that as the integer 45, nor should they: rank is an ordering hint with
+ * no bearing on what a role may actually do, and a numeric field invites the reader to
+ * assume otherwise. So the choice is offered the way it is actually thought about, and
+ * the number is derived from it.
+ *
+ * The rank produced sits half way between the two neighbours. The server re-spaces
+ * every role to multiples of ten after each save, which is what guarantees that half
+ * way between two neighbours is always a whole number nobody else holds.
+ *
+ * @param roles   every role, highest authority first
+ * @param editing the role being moved, excluded from its own neighbour list
+ */
+export function buildPositions(roles, editing) {
+  const others = roles.filter((r) => r.id !== editing?.id);
+
+  if (others.length === 0) {
+    return [{ label: 'The only role', rank: 10 }];
+  }
+
+  const highest = others[0];
+  const lowest = others[others.length - 1];
+
+  return [
+    { label: `Above ${highest.name} — the most authority`, rank: highest.rank + 10 },
+
+    ...others.slice(0, -1).map((role, i) => ({
+      label: `Between ${role.name} and ${others[i + 1].name}`,
+      rank: Math.round((role.rank + others[i + 1].rank) / 2),
+    })),
+
+    // Halved rather than reduced by ten, so the lowest rung can never go negative
+    // however many times a role is pushed to the bottom.
+    { label: `Below ${lowest.name} — the least authority`, rank: Math.floor(lowest.rank / 2) },
+  ];
+}
+
+/** Which position a role currently occupies, so editing opens on where it already is. */
+export function currentPosition(positions, role) {
+  if (!role) {
+    // A new role starts at the bottom. Authority is granted deliberately, and the
+    // administrator is about to pick its permissions anyway.
+    return positions.length - 1;
+  }
+
+  let closest = 0;
+
+  positions.forEach((position, i) => {
+    if (Math.abs(position.rank - role.rank) < Math.abs(positions[closest].rank - role.rank)) {
+      closest = i;
+    }
+  });
+
+  return closest;
+}
 
 /**
  * The permission checklist, grouped by area.
@@ -54,20 +114,28 @@ function PermissionPicker({ permissions, selected, onToggle, disabled }) {
   );
 }
 
-function RoleForm({ role, onSave, onCancel, saving, error }) {
+function RoleForm({ role, roles, onSave, onCancel, saving, error }) {
+  const positions = useMemo(() => buildPositions(roles, role), [roles, role]);
+
   const [form, setForm] = useState(() => (role
     ? {
         name: role.name,
         description: role.description ?? '',
         defaultScope: role.defaultScope,
-        rank: role.rank,
       }
     : BLANK_ROLE));
 
+  const [position, setPosition] = useState(() => currentPosition(positions, role));
+
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
+  const submit = (event) => {
+    event.preventDefault();
+    onSave({ ...form, rank: positions[Math.min(position, positions.length - 1)].rank });
+  };
+
   return (
-    <form className={s.form} onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+    <form className={s.form} onSubmit={submit}>
       {!role ? (
         <label className={s.field}>
           <span className={s.label}>Name</span>
@@ -99,10 +167,20 @@ function RoleForm({ role, onSave, onCancel, saving, error }) {
       </p>
 
       <label className={s.field}>
-        <span className={s.label}>Rank</span>
-        <input className={s.input} type="number" min={0} max={1000} value={form.rank}
-               onChange={(e) => set({ rank: Number(e.target.value) })} />
+        <span className={s.label}>Position in the hierarchy</span>
+        <select className={s.select} value={position}
+                onChange={(e) => setPosition(Number(e.target.value))}>
+          {positions.map((option, i) => (
+            <option key={option.label} value={i}>{option.label}</option>
+          ))}
+        </select>
       </label>
+
+      <p className={s.hint}>
+        Position decides only where the role appears in lists like this one. It grants
+        nothing on its own — a role placed above the Manager can still do no more than
+        the permissions ticked for it.
+      </p>
 
       {error ? <p className={s.error}>{error}</p> : null}
 
@@ -208,14 +286,14 @@ export function RolesPage() {
                 <tr>
                   <th scope="col">Role</th>
                   <th scope="col">Scope</th>
-                  <th scope="col">Rank</th>
+                  <th scope="col">Order</th>
                   <th scope="col">People</th>
                   <th scope="col">Permissions</th>
                   <th scope="col"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
-                {roles.map((role) => (
+                {roles.map((role, index) => (
                   <tr key={role.id} className={selectedId === role.id ? s.selectedRow : undefined}>
                     <th scope="row">
                       {role.name}
@@ -225,7 +303,7 @@ export function RolesPage() {
                         : null}
                     </th>
                     <td>{role.defaultScope}</td>
-                    <td className={s.muted}>{role.rank}</td>
+                    <td className={s.muted}>{index + 1}</td>
                     <td>{role.userCount}</td>
                     <td>{role.permissions.length}</td>
                     <td className={s.rowActions}>
@@ -254,6 +332,7 @@ export function RolesPage() {
             <CardHeader title="New role" />
             <CardBody>
               <RoleForm
+                roles={roles}
                 saving={create.isPending}
                 error={create.error?.detail}
                 onCancel={() => setCreating(false)}
@@ -279,6 +358,7 @@ export function RolesPage() {
                 {editing ? (
                   <RoleForm
                     role={selected}
+                    roles={roles}
                     saving={update.isPending}
                     error={update.error?.detail}
                     onCancel={() => setEditing(false)}
@@ -294,7 +374,9 @@ export function RolesPage() {
                 ) : (
                   <>
                     <p className={s.hint}>
-                      Scope <strong>{selected.defaultScope}</strong>, rank {selected.rank}.
+                      Scope <strong>{selected.defaultScope}</strong>, placed{' '}
+                      <strong>{roles.findIndex((r) => r.id === selected.id) + 1}</strong>{' '}
+                      of {roles.length} by authority.
                       {selected.isSystemRole
                         ? ' A system role: its permissions are editable, but it cannot be renamed or removed — seed data and documentation refer to it by name.'
                         : ''}

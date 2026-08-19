@@ -280,6 +280,20 @@ public static class DevelopmentSeeder
                 continue;
             }
 
+            // An organization with no departments and no teams was not built by this
+            // seeder — most likely the production bootstrapper made it. Dropping a demo
+            // cast into it would invent people the operator never asked for.
+            var isDemoTenant = await db.Departments.AnyAsync(d => d.OrganizationId == orgId)
+                               && await db.Teams.AnyAsync(t => t.OrganizationId == orgId);
+
+            if (!isDemoTenant)
+            {
+                logger.LogInformation(
+                    "Skipping {Organization}: it has no demo structure, so it was not seeded by this seeder.",
+                    organization.Code);
+                continue;
+            }
+
             var roleByName = await db.Roles
                 .Where(r => r.OrganizationId == orgId)
                 .ToDictionaryAsync(r => r.Name, StringComparer.Ordinal);
@@ -293,9 +307,13 @@ public static class DevelopmentSeeder
                 .Select(o => (Guid?)o.Id)
                 .FirstOrDefaultAsync();
 
+            // Guid? rather than Guid: GetValueOrDefault on a dictionary of Guid hands
+            // back Guid.Empty for a code that is not there, and Guid.Empty assigned to a
+            // nullable foreign key is not null — it is a reference to a department that
+            // does not exist, which the database rejects on save.
             var departmentIdByCode = await db.Departments
                 .Where(d => d.OrganizationId == orgId)
-                .ToDictionaryAsync(d => d.Code, d => d.Id, StringComparer.Ordinal);
+                .ToDictionaryAsync(d => d.Code, d => (Guid?)d.Id, StringComparer.Ordinal);
 
             foreach (var (local, first, last, roleName, teamCode) in absent)
             {

@@ -51,6 +51,17 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("Seed__EnableDemoAccounts", "true");
         Environment.SetEnvironmentVariable("Seed__DemoPassword", DemoPassword);
 
+        // Blanked for the same reason the connection string is set here: the host reads
+        // the API project's appsettings.Development.json, and a Bootstrap section there
+        // would have the production bootstrapper create its own organization before the
+        // demo seeder gets a look in. The seeder then sees a database that already has
+        // one, declines to seed, and every test that expects the demo dataset fails.
+        // The two are alternatives — bootstrap a real tenant, or seed a demo one — and
+        // these tests want the second.
+        Environment.SetEnvironmentVariable("Bootstrap__Organization__Name", string.Empty);
+        Environment.SetEnvironmentVariable("Bootstrap__Organization__Code", string.Empty);
+        Environment.SetEnvironmentVariable("Bootstrap__Administrator__Email", string.Empty);
+
         // Every test signs in from the same loopback address, so the production
         // sign-in budget of ten per minute would reject most of the suite. The
         // limiter itself is covered by a dedicated test that sets its own budget.
