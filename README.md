@@ -29,6 +29,15 @@ support and supplier support. ASP.NET Core 10 Web API, SQL Server, Clean Archite
 
 ---
 
+## Deploying it
+
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers installing on a server: configuration
+reference, creating the schema, the first-run bootstrap, database permissions, health
+checks, backups, upgrades, and a runbook for the failures an operator will actually
+meet. What follows here is local development.
+
+---
+
 ## Getting started
 
 ### 1. Configure secrets
@@ -374,13 +383,13 @@ Stack traces and SQL are never serialised.
 dotnet test
 ```
 
-**243 backend tests and 24 frontend tests, all passing** as of the last run:
+**249 backend tests and 24 frontend tests, all passing** as of the last run:
 
 | Project | Tests | Covers |
 |---|---|---|
 | `SupportTicketing.UnitTests` | 94 | Password hashing, priority matrix, workflow graph, business-hours arithmetic including DST, SLA state machine |
 | `SupportTicketing.ArchitectureTests` | 7 | Layer dependencies, no entities on controllers, anonymous-endpoint allowlist, tenant-filter bypass allowlist, no SQL Server provider types in Application |
-| `SupportTicketing.IntegrationTests` | 142 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, report scoping, CSV export and formula neutralisation, audit filtering, the whole administration surface including permission guards and secret masking, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
+| `SupportTicketing.IntegrationTests` | 148 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, report scoping, CSV export and formula neutralisation, audit filtering, the whole administration surface including permission guards and secret masking, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
 | `frontend` (Vitest) | 24 | Token store, single-flight refresh, navigation filtering, SLA formatting |
 
 Integration tests use a **real SQL Server database** (`SupportTicketing_IntegrationTests`,
@@ -404,6 +413,18 @@ query filters — an in-memory double would have passed while the API was broken
 - Global tenant filtering, fail-closed, plus soft deletion and append-only history
 - Serilog structured logging, correlation IDs, Problem Details, health checks,
   rate limiting, security headers, CORS allowlist, Swagger
+- **Production bootstrap**: brings a migrated-but-empty database to the point where
+  somebody can sign in — the permission catalogue, the seven system roles, one
+  organization and one administrator with a one-time password printed once. Idempotent,
+  runs in every environment, and additive on upgrade so a release that introduces a
+  permission grants it to Super Admin rather than leaving it unreachable
+- **Start-up refusal** in non-development environments on a missing, short or
+  placeholder signing key, an empty or wildcard CORS list, demo seeding left on, or a
+  plaintext origin. Each of these otherwise produces an application that runs perfectly
+  well and is quietly insecure
+- **Forwarded-header handling** with a known-proxy allowlist, so behind IIS or nginx the
+  audit log records the person rather than the load balancer, and the sign-in rate
+  limiter does not treat the whole organization as one client
 - Development-only seeder, double-gated, with two tenants and thirteen users
 - Self-service password change, and confinement of any account still using a password
   an administrator issued: such a session can reach only its own profile, the change
@@ -525,9 +546,11 @@ query filters — an in-memory double would have passed while the API was broken
   this machine, so every AI test exercises the unavailable branch — which is the branch
   that matters for correctness, but the success path is unproven against a real
   provider. Treat it as written-and-reviewed, not verified.
-- **EF Core emits six warnings at startup** about required navigations on filtered
-  entities. Benign given `BeginTenantScope`; the durable fix is to make the join
-  entities tenant-owned so their filters match.
+- **Seven EF Core navigation warnings are suppressed**, with the reasoning recorded at
+  the suppression. Every `Include` in the codebase is rooted at the principal, so the
+  warned scenario cannot arise; the alternative was editing the tenant-isolation
+  machinery to remove log noise. The cost is that a future entity of the same shape
+  gets no warning — the isolation tests are what guard that.
 - **Permissions are embedded in the access token.** A permission revoked mid-session
   stays effective until the token expires, which is why the lifetime defaults to 15
   minutes. Immediate revocation requires deactivating the user or revoking their

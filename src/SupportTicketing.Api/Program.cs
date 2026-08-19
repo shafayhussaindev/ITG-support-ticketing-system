@@ -7,6 +7,8 @@ using Microsoft.IdentityModel.Tokens;
 // Swashbuckle 10 ships OpenAPI.NET v2, where these types moved out of the
 // Microsoft.OpenApi.Models namespace into Microsoft.OpenApi itself.
 using Microsoft.OpenApi;
+using System.Net;
+using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
 using SupportTicketing.Api.Hubs;
 using SupportTicketing.Api.Middleware;
@@ -139,6 +141,50 @@ builder.Services.AddAuthorization(options =>
 // ---------------------------------------------------------------- CORS
 const string CorsPolicy = "SupportTicketingSpa";
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
+
+// ------------------------------------------------------------ reverse proxies
+// Behind IIS, nginx or App Service the connection is from the proxy, so
+// RemoteIpAddress is the proxy's address. Without this every audit row records the
+// load balancer rather than the person, and the sign-in rate limiter partitions every
+// user in the organization into a single bucket — one attacker would lock out
+// everybody, or nobody, depending which way you read it.
+//
+// KnownProxies matters as much as the middleware: X-Forwarded-For is a request header
+// like any other, so accepting it from an arbitrary caller lets that caller choose
+// what the audit log says about them. Empty list means the headers are ignored, which
+// is the safe default for a direct-to-Kestrel deployment.
+var knownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [];
+var knownNetworks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [];
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = builder.Configuration.GetValue("ForwardedHeaders:ForwardLimit", 1);
+
+    options.KnownProxies.Clear();
+    options.KnownIPNetworks.Clear();
+
+    foreach (var proxy in knownProxies.Where(p => IPAddress.TryParse(p, out _)))
+    {
+        options.KnownProxies.Add(IPAddress.Parse(proxy));
+    }
+
+    foreach (var network in knownNetworks)
+    {
+        var parts = network.Split('/');
+
+        if (parts.Length == 2 && IPAddress.TryParse(parts[0], out var prefix)
+            && int.TryParse(parts[1], out var length))
+        {
+            options.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix, length));
+        }
+    }
+});
+
+// Checked before anything is wired up, so a misconfigured production instance fails
+// at start rather than serving traffic while quietly insecure.
+StartupGuard.Validate(builder.Configuration, builder.Environment);
 
 builder.Services.AddCors(options => options.AddPolicy(CorsPolicy, policy =>
 {
@@ -278,6 +324,10 @@ else
     app.UseHsts();
 }
 
+// First in the pipeline: everything downstream — the rate limiter, the audit writer,
+// the HTTPS redirect — reads the connection details this corrects.
+app.UseForwardedHeaders();
+
 app.UseHttpsRedirection();
 app.UseCors(CorsPolicy);
 app.UseRateLimiter();
@@ -305,6 +355,11 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 
 // The development seeder is gated inside RunAsync; it refuses to run outside
 // Development regardless of how it is invoked.
+// Brings a migrated-but-empty database to the point where somebody can sign in:
+// the permission catalogue, the system roles, one organization, one administrator.
+// Idempotent and safe in every environment, unlike the demo seeder below it.
+await SupportTicketing.Infrastructure.Persistence.Seeding.ProductionBootstrapper.RunAsync(app.Services);
+
 await SupportTicketing.Infrastructure.Persistence.Seeding.DevelopmentSeeder.RunAsync(app.Services, app.Environment.EnvironmentName);
 
 app.Run();

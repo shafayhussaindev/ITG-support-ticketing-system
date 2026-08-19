@@ -125,7 +125,17 @@ public static class DevelopmentSeeder
         var hash = hasher.Hash(password);
 
         // ---- global permission catalogue -----------------------------------
-        var permissions = Permissions.All
+        // The bootstrapper runs first and has already created these. Inserting them
+        // again violates the unique index on Key, so this adds only what is genuinely
+        // missing and then reads the whole set back.
+        var existingKeys = await db.Permissions
+            .Select(p => p.Key)
+            .ToListAsync();
+
+        var known = existingKeys.ToHashSet(StringComparer.Ordinal);
+
+        var missing = Permissions.All
+            .Where(key => !known.Contains(key))
             .Select(key => new Permission
             {
                 Key = key,
@@ -135,10 +145,14 @@ public static class DevelopmentSeeder
             })
             .ToList();
 
-        db.Permissions.AddRange(permissions);
-        await db.SaveChangesAsync();
+        if (missing.Count > 0)
+        {
+            db.Permissions.AddRange(missing);
+            await db.SaveChangesAsync();
+        }
 
-        var permissionsByKey = permissions.ToDictionary(p => p.Key, StringComparer.Ordinal);
+        var permissionsByKey = await db.Permissions
+            .ToDictionaryAsync(p => p.Key, p => p, StringComparer.Ordinal);
 
         // ---- two tenants, so isolation can be tested rather than assumed ----
         var contoso = NewOrganization("ITG Group", "ITG", "TKT", "Asia/Karachi", now);
@@ -151,7 +165,7 @@ public static class DevelopmentSeeder
         await SeedTenantAsync(db, fabrikam, permissionsByKey, hash, now, isPrimary: false);
 
         logger.LogInformation(
-            "Seeded {Permissions} permissions across 2 organizations.", permissions.Count);
+            "Seeded 2 organizations against {Permissions} permissions.", permissionsByKey.Count);
     }
 
     private static Organization NewOrganization(

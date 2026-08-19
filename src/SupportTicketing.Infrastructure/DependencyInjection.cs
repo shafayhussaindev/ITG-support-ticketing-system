@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -78,6 +79,28 @@ public static class DependencyInjection
             });
 
             options.AddInterceptors(provider.GetRequiredService<AuditingInterceptor>());
+
+            // Seven join and child entities — RefreshToken, UserRole, RolePermission,
+            // UserPermissionOverride, TeamMember, UserSkill, TicketCommentMention —
+            // are required ends of relationships whose principal carries a global
+            // filter and which carry none themselves. EF warns that a query rooted at
+            // one of them could return a row whose required navigation was filtered
+            // away.
+            //
+            // It cannot happen here: every Include in the codebase is rooted at the
+            // principal, and the one place a dependent is queried directly — finding a
+            // refresh token by its hash — loads the user separately rather than
+            // through the navigation.
+            //
+            // Suppressed rather than fixed by restructuring, because the alternatives
+            // are worse. Adding OrganizationId to seven join tables means a migration
+            // touching every one of them, and writing navigation-based filters means
+            // editing the tenant isolation machinery, which is the most
+            // safety-critical code in the system, to remove log noise. The cost of the
+            // suppression is that a future entity of the same shape gets no warning;
+            // the tenant-isolation tests are what actually guard that.
+            options.ConfigureWarnings(warnings => warnings.Ignore(
+                CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
 
             // Queries are read-only projections in the vast majority of cases; opting
             // out of change tracking by default removes a large amount of avoidable
