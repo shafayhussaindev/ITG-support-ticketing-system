@@ -78,6 +78,10 @@ const ArticlePage = lazy(() =>
   import('@/features/knowledge/ArticlePage').then((m) => ({ default: m.ArticlePage })),
 );
 
+const ArticleEditorPage = lazy(() =>
+  import('@/features/knowledge/ArticleEditorPage').then((m) => ({ default: m.ArticleEditorPage })),
+);
+
 function lazyRoute(element) {
   return <Suspense fallback={<LoadingState label="Loading" />}>{element}</Suspense>;
 }
@@ -123,9 +127,23 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        // Declared before 'knowledge/:id', which would otherwise match this and try to
+        // load an article whose identifier is the word "new".
+        path: 'knowledge/new',
+        element: (
+          <ProtectedRoute permission="knowledge.create">{lazyRoute(<ArticleEditorPage />)}</ProtectedRoute>
+        ),
+      },
+      {
         path: 'knowledge/:id',
         element: (
           <ProtectedRoute permission="knowledge.view">{lazyRoute(<ArticlePage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        path: 'knowledge/:id/edit',
+        element: (
+          <ProtectedRoute permission="knowledge.edit">{lazyRoute(<ArticleEditorPage />)}</ProtectedRoute>
         ),
       },
       {

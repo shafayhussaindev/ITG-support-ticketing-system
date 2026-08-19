@@ -1,0 +1,157 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--s-4);
+  align-items: start;
+}
+
+.main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.back {
+  border: none;
+  background: transparent;
+  color: var(--c-text-3);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  padding: 2px 4px 2px 0;
+  align-self: flex-start;
+}
+
+.back:hover { color: var(--c-text); }
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--c-text);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--c-text-3);
+}
+
+/* ------------------------------------------------------------------ fields */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field + .field { margin-top: var(--s-3); }
+
+.label {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--c-text-3);
+}
+
+.required { color: var(--c-danger); margin-left: 2px; }
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  font-family: inherit;
+}
+
+.textarea { resize: vertical; }
+
+/* The article body is written as plain text with meaningful line breaks, so a
+   monospaced face and a generous line height make the shape of the thing —
+   headings, numbered steps — visible while it is being written. */
+.contentArea {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: var(--fs-sm);
+  line-height: 1.65;
+  min-height: 340px;
+}
+
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: -1px;
+}
+
+.hint {
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Internal visibility is the one choice on this form with a consequence that is
+   invisible once made, so it is coloured rather than left to read as another hint. */
+.warn {
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  margin: 0;
+  padding: var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-warning-soft, var(--c-surface-3));
+  color: var(--c-warning-text, var(--c-text-2));
+}
+
+.error {
+  font-size: var(--fs-xs);
+  color: var(--c-danger);
+  line-height: 1.5;
+}
+
+.denied {
+  font-size: var(--fs-sm);
+  color: var(--c-text-2);
+  margin: 0 0 var(--s-3);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--s-2);
+}
+
+.chip {
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  background: var(--c-surface-3);
+  color: var(--c-text-2);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+}

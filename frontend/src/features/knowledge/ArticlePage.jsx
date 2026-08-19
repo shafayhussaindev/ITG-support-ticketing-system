@@ -82,6 +82,9 @@ export function ArticlePage() {
     );
   }
 
+  // Edit is a navigation, not a status change, so it is split out rather than
+  // dropped — it was filtered away entirely while there was no editor to reach.
+  const canEdit = article.availableActions.includes('Edit');
   const statusActions = article.availableActions.filter((a) => a !== 'Edit');
 
   return (
@@ -163,6 +166,22 @@ export function ArticlePage() {
       </article>
 
       <aside className={s.side}>
+        {canEdit ? (
+          <Card>
+            <CardHeader title="Revise" subtitle="Saving adds a version and keeps the old one" />
+            <CardBody>
+              <Button
+                size="sm"
+                fullWidth
+                variant="secondary"
+                onClick={() => navigate(`/knowledge/${article.id}/edit`)}
+              >
+                Edit this article
+              </Button>
+            </CardBody>
+          </Card>
+        ) : null}
+
         {statusActions.length > 0 ? (
           <Card>
             <CardHeader title="Lifecycle" subtitle="Publishing is a separate permission from editing" />
