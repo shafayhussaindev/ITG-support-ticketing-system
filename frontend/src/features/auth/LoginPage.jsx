@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Button, Field, LoadingState } from '@/components/ui';
-import { ParticleField } from '@/components/visual/ParticleField';
+import { ParticleSphere } from '@/components/visual/ParticleSphere';
 import { useMotion } from '@/motion/hooks';
 import { DURATION, EASE, gsap } from '@/motion/motion';
 import s from './LoginPage.module.css';
@@ -128,7 +128,7 @@ export function LoginPage() {
       <aside className={s.aside} data-login-aside>
         {/* Behind the copy, not around it: the cloud is atmosphere, and the words
             still have to be the first thing read. */}
-        <ParticleField className={s.asideField} density={7} />
+        <ParticleSphere className={s.asideField} density={26} maxPoints={420} repel={false} />
         <div className={s.asideVeil} aria-hidden="true" />
 
         <div className={s.asideBrand}>

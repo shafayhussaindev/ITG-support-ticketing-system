@@ -18,10 +18,8 @@
   flex-direction: column;
   justify-content: space-between;
 
-  /* Read by ParticleField. Warm white points over the dark panel; links a shade
-     cooler so the web recedes behind the nodes. */
+  /* Read by ParticleSphere. Warm white points over the dark panel. */
   --particle-point: 190, 240, 245;
-  --particle-link: 120, 200, 210;
 }
 
 .asideField {

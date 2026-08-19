@@ -139,18 +139,28 @@ frontend/src/
 
 ### Landing page
 
-`/` serves a public landing page to a visitor and redirects a signed-in user straight
-to their dashboard — a marketing page is an obstacle between somebody and their queue.
-It is code-split for the same reason the dashboard is: a daily user should never
-download a page they will not see.
+`/` serves a public entry page to a visitor and redirects a signed-in user straight to
+their dashboard — a marketing page is an obstacle between somebody and their queue. It
+is code-split for the same reason the dashboard is: a daily user should never download
+a page they will not see.
 
-The hero and the sign-in panel share a
-[3D particle field](frontend/src/components/visual/ParticleField.jsx): a rotating point
-cloud with genuine perspective projection, depth-driven size, opacity and connections,
-and a shallow pointer parallax. Hand-written rather than pulled in — a WebGL library is
-around 150KB gzipped on the one page every user waits for, and this is roughly six. It
-reads its palette from CSS so it follows the theme, holds one static frame under
-reduced motion, and stops entirely while the tab is hidden.
+One sphere, one sentence, one **Get started** button, centred. The
+[particle sphere](frontend/src/components/visual/ParticleSphere.jsx) has genuine
+perspective projection — points sit at (x, y, z) on a Fibonacci-distributed shell,
+rotate, and project through a focal length, with depth driving both size and opacity.
+Bringing the pointer near scatters them and they spring back.
+
+Hand-written rather than pulled in: a WebGL library is around 150KB gzipped on the one
+page a first-time visitor waits for, and this is about seven. It reads its palette from
+CSS, holds one static frame under reduced motion, and stops entirely while the tab is
+hidden.
+
+The scatter physics lives in its own module,
+[`repulsion.js`](frontend/src/components/visual/repulsion.js), and is unit tested. It
+cannot be watched in a headless run, and its failure modes are sensations rather than
+exceptions — points that never return, that oscillate, or that vanish because a cursor
+landing exactly on one divided by zero. Each of those is a statement about numbers, so
+each is asserted.
 
 ### Motion
 
@@ -420,14 +430,14 @@ Stack traces and SQL are never serialised.
 dotnet test
 ```
 
-**249 backend tests and 30 frontend tests, all passing** as of the last run:
+**249 backend tests and 37 frontend tests, all passing** as of the last run:
 
 | Project | Tests | Covers |
 |---|---|---|
 | `SupportTicketing.UnitTests` | 94 | Password hashing, priority matrix, workflow graph, business-hours arithmetic including DST, SLA state machine |
 | `SupportTicketing.ArchitectureTests` | 7 | Layer dependencies, no entities on controllers, anonymous-endpoint allowlist, tenant-filter bypass allowlist, no SQL Server provider types in Application |
 | `SupportTicketing.IntegrationTests` | 148 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, report scoping, CSV export and formula neutralisation, audit filtering, the whole administration surface including permission guards and secret masking, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
-| `frontend` (Vitest) | 30 | Token store, single-flight refresh, navigation filtering, SLA formatting, and the motion fail-safe — that a figure is correct even when no animation runs |
+| `frontend` (Vitest) | 37 | Token store, single-flight refresh, navigation filtering, SLA formatting, the motion fail-safe — that a figure is correct even when no animation runs — and the particle scatter physics |
 
 Integration tests use a **real SQL Server database** (`SupportTicketing_IntegrationTests`,
 dropped and recreated per run), not the in-memory provider. Every defect found while
