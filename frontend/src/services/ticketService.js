@@ -23,6 +23,18 @@ export const ticketService = {
   get: (id) => api.get(`/tickets/${id}`),
   create: (body) => api.post('/tickets', body),
 
+  attachments: (id) => api.get(`/tickets/${id}/attachments`),
+
+  uploadAttachment: (id, file, { commentId, isInternalOnly } = {}) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (commentId) form.append('commentId', commentId);
+    if (isInternalOnly) form.append('isInternalOnly', 'true');
+
+    return api.upload(`/tickets/${id}/attachments`, form);
+  },
+  deleteAttachment: (id, attachmentId) => api.delete(`/tickets/${id}/attachments/${attachmentId}`),
+
   comments: (id) => api.get(`/tickets/${id}/comments`),
   addComment: (id, body) => api.post(`/tickets/${id}/comments`, body),
 
@@ -43,5 +55,6 @@ export const ticketKeys = {
   list: (params) => ['tickets', 'list', params],
   detail: (id) => ['tickets', 'detail', id],
   comments: (id) => ['tickets', 'comments', id],
+  attachments: (id) => ['tickets', 'attachments', id],
   timeline: (id) => ['tickets', 'timeline', id],
 };

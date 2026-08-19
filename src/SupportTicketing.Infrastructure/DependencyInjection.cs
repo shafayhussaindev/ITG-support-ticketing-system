@@ -5,11 +5,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SupportTicketing.Application.Abstractions;
 using SupportTicketing.Application.Features.Ai;
+using SupportTicketing.Application.Features.Attachments;
 using SupportTicketing.Infrastructure.Ai;
 using SupportTicketing.Infrastructure.Auditing;
 using SupportTicketing.Infrastructure.Persistence;
 using SupportTicketing.Infrastructure.Persistence.Interceptors;
 using SupportTicketing.Infrastructure.Security;
+using SupportTicketing.Infrastructure.Storage;
 
 namespace SupportTicketing.Infrastructure;
 
@@ -31,6 +33,17 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<ITicketNumberGenerator, TicketNumberGenerator>();
+
+        // File storage. Local disk is the default and the right answer for a single
+        // server; the abstraction is what makes moving to blob storage a registration
+        // change rather than a rewrite, which becomes urgent the day somebody scales
+        // out and the second instance cannot see the first one's disk.
+        services.AddOptions<FileStorageOptions>()
+            .Bind(configuration.GetSection(FileStorageOptions.SectionName))
+            .ValidateDataAnnotations();
+
+        services.AddSingleton<IFileStorage, LocalFileStorage>();
+        services.AddSingleton<IAttachmentPolicy, AttachmentPolicy>();
 
         // AI. The options bind even with no key present: OpenAiService reports itself
         // unconfigured and every caller falls back to its deterministic answer, so the

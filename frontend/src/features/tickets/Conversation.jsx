@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Button, Card, CardBody, CardHeader, EmptyState, Skeleton } from '@/components/ui';
 import { formatDateTime, formatRelative } from '@/utils/datetime';
+import { AttachmentList, formatSize } from './AttachmentList';
 import s from './Conversation.module.css';
 
 function initials(name = '') {
@@ -18,8 +19,11 @@ export function Conversation({ ticketId, ticketStatus }) {
 
   const [body, setBody] = useState('');
   const [isInternal, setIsInternal] = useState(false);
+  const [staged, setStaged] = useState([]);
+  const [dragging, setDragging] = useState(false);
 
   const canWriteNote = can('ticket.internal_note');
+  const canAttach = can('attachment.upload');
   const isClosed = ['Closed', 'Cancelled'].includes(ticketStatus);
 
   const { data: comments, isPending, isError, refetch } = useQuery({
@@ -27,10 +31,40 @@ export function Conversation({ ticketId, ticketStatus }) {
     queryFn: () => ticketService.comments(ticketId),
   });
 
+  const { data: attachments } = useQuery({
+    queryKey: ticketKeys.attachments(ticketId),
+    queryFn: () => ticketService.attachments(ticketId),
+  });
+
+  const removeAttachment = useMutation({
+    mutationFn: (attachmentId) => ticketService.deleteAttachment(ticketId, attachmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ticketKeys.attachments(ticketId) });
+      toast.success('Attachment removed');
+    },
+    onError: (error) => toast.error('Could not remove it', error.detail),
+  });
+
   const addComment = useMutation({
-    mutationFn: () => ticketService.addComment(ticketId, { body: body.trim(), isInternal }),
+    mutationFn: async () => {
+      const comment = await ticketService.addComment(ticketId, { body: body.trim(), isInternal });
+
+      // Uploaded after the comment exists, so each file is tied to the message it
+      // arrived with — and so an upload that fails leaves a posted reply rather than
+      // silently losing what the person wrote.
+      for (const file of staged) {
+        await ticketService.uploadAttachment(ticketId, file, {
+          commentId: comment.id,
+          isInternalOnly: isInternal,
+        });
+      }
+
+      return comment;
+    },
     onSuccess: () => {
       setBody('');
+      setStaged([]);
+      queryClient.invalidateQueries({ queryKey: ticketKeys.attachments(ticketId) });
       queryClient.invalidateQueries({ queryKey: ticketKeys.comments(ticketId) });
       queryClient.invalidateQueries({ queryKey: ticketKeys.detail(ticketId) });
       queryClient.invalidateQueries({ queryKey: ticketKeys.timeline(ticketId) });
@@ -110,18 +144,43 @@ export function Conversation({ ticketId, ticketStatus }) {
           </ol>
         )}
 
+        {attachments && attachments.length > 0 ? (
+          <div className={s.attachments}>
+            <p className={s.attachmentsTitle}>
+              {attachments.length} {attachments.length === 1 ? 'attachment' : 'attachments'}
+            </p>
+            <AttachmentList
+              ticketId={ticketId}
+              attachments={attachments}
+              canDelete={can('attachment.delete')}
+              onDelete={(id) => removeAttachment.mutate(id)}
+            />
+          </div>
+        ) : null}
+
         {isClosed ? (
           <p className={s.closedNote}>
             This ticket is {ticketStatus.toLowerCase()}. Reopen it to continue the conversation.
           </p>
         ) : (
           <form
-            className={`${s.composer} ${isInternal ? s.composerInternal : ''}`}
+            className={[
+              s.composer,
+              isInternal ? s.composerInternal : '',
+              dragging ? s.composerDragging : '',
+            ].filter(Boolean).join(' ')}
             onSubmit={(e) => {
               e.preventDefault();
               if (body.trim()) {
                 addComment.mutate();
               }
+            }}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              setStaged((current) => [...current, ...Array.from(e.dataTransfer.files)]);
             }}
           >
             {canWriteNote ? (
@@ -163,7 +222,45 @@ export function Conversation({ ticketId, ticketStatus }) {
               }
             />
 
+            {staged.length > 0 ? (
+              <ul className={s.staged}>
+                {staged.map((file, index) => (
+                  <li key={`${file.name}-${index}`} className={s.stagedItem}>
+                    <span className={s.stagedName}>{file.name}</span>
+                    <span className={s.stagedSize}>{formatSize(file.size)}</span>
+                    <button
+                      type="button"
+                      className={s.stagedRemove}
+                      aria-label={`Remove ${file.name}`}
+                      onClick={() => setStaged((c) => c.filter((_, i) => i !== index))}
+                    >
+                      &times;
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
             <div className={s.composerActions}>
+              {canAttach ? (
+                <label className={s.attach}>
+                  <input
+                    type="file"
+                    multiple
+                    className="sr-only"
+                    accept="image/*,video/*,.pdf,.zip,.log,.txt,.csv"
+                    onChange={(e) => {
+                      setStaged((c) => [...c, ...Array.from(e.target.files ?? [])]);
+
+                      // Cleared so choosing the same file twice in a row still fires
+                      // a change event the second time.
+                      e.target.value = '';
+                    }}
+                  />
+                  📎 Attach
+                </label>
+              ) : null}
+
               {isInternal ? (
                 <span className={s.warning}>Staff only — the requester cannot see this</span>
               ) : (
@@ -177,7 +274,9 @@ export function Conversation({ ticketId, ticketStatus }) {
                 loading={addComment.isPending}
                 disabled={!body.trim()}
               >
-                {isInternal ? 'Add note' : 'Send reply'}
+                {staged.length > 0
+                  ? `${isInternal ? 'Add note' : 'Send reply'} with ${staged.length} file${staged.length === 1 ? '' : 's'}`
+                  : isInternal ? 'Add note' : 'Send reply'}
               </Button>
             </div>
           </form>

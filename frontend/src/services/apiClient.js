@@ -132,7 +132,12 @@ export async function apiRequest(path, options = {}) {
     'X-Correlation-Id': correlationId(),
   };
 
-  if (body !== undefined) {
+  // FormData sets its own Content-Type, including the multipart boundary. Setting
+  // it here would overwrite that with a boundary-less header and the server would
+  // fail to parse a body that is otherwise perfectly well formed.
+  const isMultipart = typeof FormData !== 'undefined' && body instanceof FormData;
+
+  if (body !== undefined && !isMultipart) {
     headers['Content-Type'] = 'application/json';
   }
 
@@ -149,7 +154,7 @@ export async function apiRequest(path, options = {}) {
     response = await fetch(`${BASE_URL}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isMultipart ? body : JSON.stringify(body),
       signal,
     });
   } catch (error) {
@@ -227,6 +232,9 @@ export const api = {
   put: (path, body, options) => apiRequest(path, { ...options, method: 'PUT', body }),
   patch: (path, body, options) => apiRequest(path, { ...options, method: 'PATCH', body }),
   delete: (path, options) => apiRequest(path, { ...options, method: 'DELETE' }),
+
+  /** POSTs multipart form data — the browser supplies the Content-Type and boundary. */
+  upload: (path, formData) => apiRequest(path, { method: 'POST', body: formData }),
 
   /** POSTs and resolves to { blob, fileName } for endpoints that answer with a file. */
   download: (path, body) => apiRequest(path, { method: 'POST', body, responseType: 'blob' }),

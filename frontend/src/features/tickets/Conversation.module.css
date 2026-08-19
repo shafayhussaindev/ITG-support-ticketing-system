@@ -191,3 +191,99 @@
   font-weight: 700;
   color: var(--c-warning-text);
 }
+
+/* ------------------------------------------------------------- attachments */
+
+.attachments {
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-border);
+}
+
+.attachmentsTitle {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--c-text-3);
+}
+
+/*
+  The drop target is the composer itself rather than a separate zone. Somebody
+  dragging a screenshot into a conversation aims at the box they were about to type
+  in, and a dedicated target they have to find is a step that earns nothing.
+*/
+.composerDragging {
+  border-color: var(--c-primary);
+  background: var(--c-primary-soft);
+}
+
+.attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+
+.attach:hover { background: var(--c-surface-3); color: var(--c-text); }
+
+.attach:focus-within {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+}
+
+.staged {
+  list-style: none;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.stagedItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  font-size: var(--fs-xs);
+}
+
+.stagedName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--c-text);
+}
+
+.stagedSize { color: var(--c-text-3); flex-shrink: 0; }
+
+.stagedRemove {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--c-text-3);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.stagedRemove:hover { background: var(--c-danger-soft); color: var(--c-danger-text); }

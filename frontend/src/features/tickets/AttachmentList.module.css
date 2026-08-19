@@ -1,0 +1,95 @@
+.list {
+  list-style: none;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.item {
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface-2);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+}
+
+.icon { font-size: var(--fs-md); line-height: 1; flex-shrink: 0; }
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.name {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-text);
+
+  /* A screen recording named after a timestamp and a window title runs long; it
+     truncates rather than pushing the download button off the row. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail { font-size: var(--fs-xs); color: var(--c-text-3); }
+
+.actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+.action {
+  padding: 3px 8px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-text-2);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+
+.action:hover:not(:disabled) { background: var(--c-surface-3); color: var(--c-text); }
+.action:disabled { opacity: 0.6; cursor: progress; }
+
+.danger { color: var(--c-danger-text); border-color: var(--c-danger); }
+.danger:hover { background: var(--c-danger-soft); }
+
+.previewButton {
+  display: block;
+  width: 100%;
+  padding: var(--s-3);
+  border: none;
+  border-top: 1px dashed var(--c-border);
+  background: transparent;
+  color: var(--c-primary-text);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.previewButton:hover { background: var(--c-surface-3); }
+.previewButton:disabled { color: var(--c-text-3); cursor: progress; }
+
+.preview {
+  display: block;
+  width: 100%;
+
+  /* Capped so one large screenshot does not push the rest of the conversation off
+     the screen. The full-size file is a download away. */
+  max-height: 340px;
+  object-fit: contain;
+  background: var(--c-surface-3);
+  border-top: 1px solid var(--c-border);
+}
