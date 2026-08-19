@@ -61,7 +61,7 @@ EXPOSE 8080
 # is up but cannot reach SQL Server is not ready to take traffic, and compose uses
 # this to hold the frontend back until it is.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=5 \
-    CMD ["dotnet", "/app/healthcheck.dll"]
+    CMD curl --fail --silent --show-error http://localhost:8080/health/ready || exit 1
 
 COPY --from=build /app .
 
