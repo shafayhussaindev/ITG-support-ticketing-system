@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { LoginPage } from '@/features/auth/LoginPage';
+import { RootRoute } from './RootRoute';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { LoadingState } from '@/components/ui';
 
@@ -83,7 +84,7 @@ function lazyRoute(element) {
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
-  { path: '/', element: <Navigate to="/dashboard" replace /> },
+  { path: '/', element: <RootRoute /> },
   {
     path: '/',
     element: (

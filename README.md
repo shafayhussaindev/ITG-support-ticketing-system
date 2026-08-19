@@ -137,6 +137,21 @@ frontend/src/
   utils/        permission keys and scope labels
 ```
 
+### Landing page
+
+`/` serves a public landing page to a visitor and redirects a signed-in user straight
+to their dashboard — a marketing page is an obstacle between somebody and their queue.
+It is code-split for the same reason the dashboard is: a daily user should never
+download a page they will not see.
+
+The hero and the sign-in panel share a
+[3D particle field](frontend/src/components/visual/ParticleField.jsx): a rotating point
+cloud with genuine perspective projection, depth-driven size, opacity and connections,
+and a shallow pointer parallax. Hand-written rather than pulled in — a WebGL library is
+around 150KB gzipped on the one page every user waits for, and this is roughly six. It
+reads its palette from CSS so it follows the theme, holds one static frame under
+reduced motion, and stops entirely while the tab is hidden.
+
 ### Motion
 
 GSAP drives the interface's movement through one shared vocabulary in

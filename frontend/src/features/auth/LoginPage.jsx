@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Button, Field, LoadingState } from '@/components/ui';
+import { ParticleField } from '@/components/visual/ParticleField';
 import { useMotion } from '@/motion/hooks';
 import { DURATION, EASE, gsap } from '@/motion/motion';
 import s from './LoginPage.module.css';
@@ -125,6 +126,11 @@ export function LoginPage() {
   return (
     <div className={s.page} ref={scope}>
       <aside className={s.aside} data-login-aside>
+        {/* Behind the copy, not around it: the cloud is atmosphere, and the words
+            still have to be the first thing read. */}
+        <ParticleField className={s.asideField} density={7} />
+        <div className={s.asideVeil} aria-hidden="true" />
+
         <div className={s.asideBrand}>
           <span className={s.asideMark} aria-hidden="true">
             ST
@@ -152,7 +158,7 @@ export function LoginPage() {
           </ul>
         </div>
 
-        <p className={s.asideFoot}>Phase 5 build — tickets, SLA, reporting, knowledge base and AI assistance</p>
+        <p className={s.asideFoot}>Tickets, service levels, reporting and a knowledge base.</p>
       </aside>
 
       <div className={s.panel} data-login-card>

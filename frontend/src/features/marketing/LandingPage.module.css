@@ -1,0 +1,343 @@
+/*
+  The landing page.
+
+  Restrained on purpose. The particle field is the one flourish, and everything in
+  front of it is the same typographic system the application uses — because the
+  promise a landing page makes is one the product then has to keep, and a page styled
+  nothing like the thing it is selling breaks that on the first click.
+*/
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-bg);
+  overflow-x: hidden;
+
+  /* Consumed by ParticleField, which reads its palette from CSS so the cloud
+     follows the theme rather than being hardcoded against one. */
+  --particle-point: 15, 110, 119;
+  --particle-link: 15, 110, 119;
+}
+
+:global([data-theme='dark']) .page {
+  --particle-point: 90, 200, 210;
+  --particle-link: 60, 150, 165;
+}
+
+/* ------------------------------------------------------------- the field */
+
+.field {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: min(105vh, 900px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/*
+  Fades the cloud out towards the content rather than cropping it. A hard edge would
+  announce that the animation is a rectangle sitting behind the page.
+*/
+.fieldMask {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 70% 12%, transparent 0%, var(--c-bg) 72%),
+    linear-gradient(to bottom, transparent 55%, var(--c-bg) 96%);
+}
+
+/* ------------------------------------------------------------- structure */
+
+.topbar,
+.hero,
+.capabilities,
+.footer {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-inline: var(--s-5);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding-block: var(--s-4);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-display);
+  font-weight: 650;
+  font-size: var(--fs-md);
+  color: var(--c-text);
+}
+
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-md);
+  background: var(--c-primary);
+  color: #fff;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.topbarActions { display: flex; align-items: center; gap: var(--s-2); }
+
+.themeToggle {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text-2);
+  font-size: var(--fs-md);
+  cursor: pointer;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+
+.themeToggle:hover { background: var(--c-surface-3); color: var(--c-text); }
+
+.signIn {
+  padding: 7px 14px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out);
+}
+
+.signIn:hover {
+  background: var(--c-surface-3);
+  border-color: var(--c-text-3);
+  text-decoration: none;
+}
+
+/* ----------------------------------------------------------------- hero */
+
+.hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-block: clamp(var(--s-6), 11vh, 128px) var(--s-7);
+  max-width: 900px;
+}
+
+.eyebrow {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--c-primary-text);
+  margin-bottom: var(--s-4);
+}
+
+.headline {
+  font-family: var(--font-display);
+
+  /* Scales with the viewport rather than stepping at breakpoints, so the line
+     break lands in the same place on a laptop and a large monitor. */
+  font-size: clamp(2.2rem, 6vw, 4.1rem);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  color: var(--c-text);
+  max-width: 16ch;
+}
+
+.headlineAccent { color: var(--c-primary-text); }
+
+.lede {
+  margin-top: var(--s-5);
+  max-width: 58ch;
+  font-size: clamp(var(--fs-md), 1.6vw, var(--fs-lg));
+  line-height: 1.62;
+  color: var(--c-text-2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-top: var(--s-6);
+}
+
+.primaryAction {
+  padding: 12px 22px;
+  border-radius: var(--r-md);
+  background: var(--c-primary);
+  color: #fff;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-out),
+    box-shadow var(--t-fast) var(--ease-out);
+}
+
+.primaryAction:hover {
+  background: var(--c-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+  text-decoration: none;
+}
+
+.primaryAction:active { transform: translateY(0); }
+
+.secondaryAction {
+  padding: 12px 18px;
+  border-radius: var(--r-md);
+  color: var(--c-text-2);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--t-fast) var(--ease-out), background-color var(--t-fast) var(--ease-out);
+}
+
+.secondaryAction:hover {
+  background: var(--c-surface-3);
+  color: var(--c-text);
+  text-decoration: none;
+}
+
+/* -------------------------------------------------------------- figures */
+
+.figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-6);
+  margin: var(--s-7) 0 0;
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--c-border);
+  width: 100%;
+}
+
+.figure { margin: 0; }
+
+.figureValue {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--c-text);
+}
+
+.figureLabel {
+  margin: 2px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+  max-width: 22ch;
+  line-height: 1.45;
+}
+
+/* --------------------------------------------------------- capabilities */
+
+.capabilities { padding-block: var(--s-7); }
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--c-text);
+  margin-bottom: var(--s-5);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--s-4);
+}
+
+.capability {
+  padding: var(--s-4);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-sm), var(--ring-subtle);
+  transition:
+    transform var(--t-base) var(--ease-out),
+    box-shadow var(--t-base) var(--ease-out),
+    border-color var(--t-base) var(--ease-out);
+}
+
+.capability:hover {
+  transform: translateY(-2px);
+  border-color: var(--c-border-strong);
+  box-shadow: var(--shadow-md), var(--ring-subtle);
+}
+
+.capabilityTitle {
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 650;
+  color: var(--c-text);
+  margin-bottom: 6px;
+}
+
+.capabilityBody {
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--c-text-2);
+}
+
+/* ---------------------------------------------------------------- footer */
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-block: var(--s-5);
+  border-top: 1px solid var(--c-border);
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryAction:hover,
+  .capability:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar,
+  .hero,
+  .capabilities,
+  .footer {
+    padding-inline: var(--s-4);
+  }
+
+  .figures { gap: var(--s-5); }
+}
