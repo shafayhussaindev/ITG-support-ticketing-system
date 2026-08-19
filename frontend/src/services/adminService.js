@@ -25,6 +25,7 @@ export const adminService = {
     setActive: (id, body) => api.post(`/admin/users/${id}/active`, body),
     resetPassword: (id) => api.post(`/admin/users/${id}/reset-password`, {}),
     revokeSessions: (id) => api.post(`/admin/users/${id}/revoke-sessions`, {}),
+    remove: (id) => api.delete(`/admin/users/${id}`),
   },
 
   roles: {

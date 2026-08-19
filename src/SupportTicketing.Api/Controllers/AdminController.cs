@@ -96,6 +96,25 @@ public sealed class AdminUsersController(IDispatcher dispatcher) : ControllerBas
         Guid id, CancellationToken cancellationToken) =>
         Ok(await dispatcher.SendAsync(new ResetUserPasswordCommand(id), cancellationToken));
 
+    /// <summary>Permanently removes an account that owns no work.</summary>
+    [HttpDelete("{id:guid}")]
+    [HasPermission(Permissions.Administration.ManageOrganizations)]
+    [SwaggerOperation(Summary = "Delete a user", Description =
+        "Super Admin only, and refused for any account that has raised or been "
+        + "assigned a ticket, written a comment, authored an article or leads a team — "
+        + "removing it would leave that work without an owner. Deactivate those "
+        + "instead. This is for accounts that should not exist: a mistyped address, a "
+        + "duplicate, somebody provisioned for a role they never took up. Audit rows "
+        + "survive, because they hold the name and email as a snapshot rather than a "
+        + "foreign key.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await dispatcher.SendAsync(new DeleteUserCommand(id), cancellationToken);
+        return NoContent();
+    }
+
     /// <summary>Signs the account out of every device.</summary>
     [HttpPost("{id:guid}/revoke-sessions")]
     [SwaggerOperation(Summary = "Revoke sessions")]

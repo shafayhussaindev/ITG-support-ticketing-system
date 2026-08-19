@@ -420,13 +420,13 @@ Stack traces and SQL are never serialised.
 dotnet test
 ```
 
-**249 backend tests and 30 frontend tests, all passing** as of the last run:
+**288 backend tests and 30 frontend tests, all passing** as of the last run:
 
 | Project | Tests | Covers |
 |---|---|---|
-| `SupportTicketing.UnitTests` | 94 | Password hashing, priority matrix, workflow graph, business-hours arithmetic including DST, SLA state machine |
+| `SupportTicketing.UnitTests` | 113 | Password hashing, priority matrix, workflow graph, business-hours arithmetic including DST, SLA state machine |
 | `SupportTicketing.ArchitectureTests` | 7 | Layer dependencies, no entities on controllers, anonymous-endpoint allowlist, tenant-filter bypass allowlist, no SQL Server provider types in Application |
-| `SupportTicketing.IntegrationTests` | 148 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, report scoping, CSV export and formula neutralisation, audit filtering, the whole administration surface including permission guards and secret masking, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
+| `SupportTicketing.IntegrationTests` | 168 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, report scoping, CSV export and formula neutralisation, audit filtering, the whole administration surface including permission guards and secret masking, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
 | `frontend` (Vitest) | 30 | Token store, single-flight refresh, navigation filtering, SLA formatting, and the motion fail-safe — that a figure is correct even when no animation runs |
 
 Integration tests use a **real SQL Server database** (`SupportTicketing_IntegrationTests`,
@@ -570,7 +570,13 @@ query filters — an in-memory double would have passed while the API was broken
 - **Email intake.** Nothing reads a mailbox or turns a reply into a comment. This was
   in the Phase 5 brief and is not implemented; `TicketSource.Email` exists in the
   domain but no ingester writes it.
-- **Attachments.** The table and domain entity exist; upload and download do not.
+- **A malware scanner.** Uploads are recorded as `Skipped` rather than claiming a
+  clean result nobody produced. Wiring one in is an `IAttachmentPolicy` change plus a
+  scan step; the state machine already has `Pending`, `Infected` and `ScanFailed`.
+- **Email verification.** A user changing their own address is not asked to confirm
+  it, because nothing can send the confirmation. They must supply their password and
+  the change is audited with both addresses, but somebody can set an address they do
+  not own.
 - **Approvals and parent–child tickets**, and **SMTP delivery** — notifications are
   stored and shown in the app, but nothing is emailed, so an escalation reaches only
   somebody who is already looking.
@@ -595,7 +601,11 @@ query filters — an in-memory double would have passed while the API was broken
 - **The refresh token is held in `localStorage`**, which is readable by any script that
   achieves XSS. The access token is kept in memory only. A `Secure`/`HttpOnly` cookie
   would be stronger and needs a same-site deployment topology to be practical.
-- No Docker configuration — Docker is not installed on the build machine.
+- **The Docker images are written but unverified.** Docker Desktop is installed here
+  and its engine would not start without an interactive desktop session, so
+  `docker compose up` has never actually run on this machine. The Dockerfiles, compose
+  file and nginx configuration are reviewed and their YAML parses; treat them as
+  unproven until somebody runs them.
 
 ---
 

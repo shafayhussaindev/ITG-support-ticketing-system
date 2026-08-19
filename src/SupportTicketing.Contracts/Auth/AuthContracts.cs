@@ -78,3 +78,16 @@ public sealed record TeamMembershipResponse
     public required string TeamName { get; init; }
     public required string RoleInTeam { get; init; }
 }
+
+/// <summary>
+/// A user changing the address they sign in with.
+/// </summary>
+/// <remarks>
+/// The current password is required because the email is the sign-in identity, so
+/// changing it is closer to changing a credential than to editing a profile field.
+/// </remarks>
+public sealed record ChangeEmailRequest
+{
+    public required string CurrentPassword { get; init; }
+    public required string NewEmail { get; init; }
+}

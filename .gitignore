@@ -26,6 +26,7 @@ test-results/
 .env
 .env.*
 !.env.example
+!.env.docker.example
 appsettings.Development.local.json
 appsettings.Production.json
 secrets.json
@@ -38,3 +39,6 @@ app-data/attachments/
 ## OS
 Thumbs.db
 .DS_Store
+
+# Docker
+docker-compose.override.yml

@@ -650,3 +650,129 @@ public sealed class RevokeUserSessionsCommandHandler(
         return count;
     }
 }
+
+// --------------------------------------------------------------------- delete
+
+public sealed record DeleteUserCommand(Guid Id) : ICommand<bool>;
+
+/// <summary>
+/// Removes an account outright, for a Super Admin.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Deliberately narrow. An account that has raised a ticket, been assigned one, or
+/// written a comment cannot be deleted, because the rows referencing it are the work
+/// itself — removing the account would either destroy that work or leave a ticket with
+/// no requester. Deactivation is the answer there, and the refusal says so.
+/// </para>
+/// <para>
+/// What this is for is the account that should not exist: a typo in an email address,
+/// a duplicate, someone provisioned for a role they never took up. Those accumulate,
+/// and deactivating them leaves a user list nobody can read.
+/// </para>
+/// <para>
+/// Audit rows survive. They hold the actor's name and email as a snapshot rather than
+/// a foreign key, precisely so history stays readable when the account behind it is
+/// gone.
+/// </para>
+/// </remarks>
+public sealed class DeleteUserCommandHandler(
+    IAppDbContext db, ICurrentUser currentUser, IAuditWriter audit)
+    : ICommandHandler<DeleteUserCommand, bool>
+{
+    public async Task<bool> HandleAsync(
+        DeleteUserCommand command, CancellationToken cancellationToken)
+    {
+        // Not users.manage. Deleting is a different act from administering, and the
+        // one person who should be able to do it is the one who answers for the tenant.
+        currentUser.Require(Permissions.Administration.ManageOrganizations);
+
+        if (command.Id == currentUser.UserId)
+        {
+            throw new ConflictException(
+                "cannot_delete_self", "You cannot delete your own account.");
+        }
+
+        var user = await db.Users.AsTracking()
+            .FirstOrDefaultAsync(u => u.Id == command.Id, cancellationToken)
+            ?? throw new NotFoundException(nameof(User), command.Id);
+
+        var blockers = await DescribeWorkAsync(db, user.Id, cancellationToken);
+
+        if (blockers.Count > 0)
+        {
+            throw new ConflictException(
+                "user_owns_work",
+                $"{user.Email} cannot be deleted because the account owns "
+                + $"{string.Join(", ", blockers)}. Removing it would leave that work "
+                + "without an owner, or destroy it. Deactivate the account instead — "
+                + "that revokes every session and keeps the history readable.");
+        }
+
+        // Rows that exist only to describe the account, and mean nothing once it is
+        // gone. Removed explicitly rather than by cascade, so what is destroyed is
+        // written down here rather than inferred from the schema.
+        await db.UserRoles.Where(r => r.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
+        await db.UserSkills.Where(r => r.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
+        await db.UserPermissionOverrides.Where(r => r.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
+        await db.RefreshTokens.Where(r => r.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
+        await db.TeamMembers.Where(r => r.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
+        await db.NotificationPreferences.Where(r => r.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
+        await db.Notifications.Where(r => r.RecipientUserId == user.Id).ExecuteDeleteAsync(cancellationToken);
+
+        // Written before the row goes, so the audit entry carries the name and email
+        // of an account that will not be there to look up afterwards.
+        await audit.WriteAsync(
+            AuditAction.Deleted, nameof(User), user.Id, user.Email,
+            changes: new { user.Email, Name = user.FullName, Permanent = true },
+            cancellationToken: cancellationToken);
+
+        db.Users.Remove(user);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Describes, in words, what the account owns — for the refusal message.
+    /// </summary>
+    /// <remarks>
+    /// Counting rather than existence-checking so the message can say "four tickets"
+    /// instead of "some work", which is the difference between an administrator
+    /// knowing what to reassign and having to go and find out.
+    /// </remarks>
+    private static async Task<List<string>> DescribeWorkAsync(
+        IAppDbContext db, Guid userId, CancellationToken cancellationToken)
+    {
+        var blockers = new List<string>();
+
+        var raised = await db.Tickets.IgnoreQueryFilters()
+            .CountAsync(t => t.RequesterId == userId, cancellationToken);
+
+        if (raised > 0) blockers.Add($"{raised} raised {Plural(raised, "ticket")}");
+
+        var assigned = await db.Tickets.IgnoreQueryFilters()
+            .CountAsync(t => t.AssignedAgentId == userId, cancellationToken);
+
+        if (assigned > 0) blockers.Add($"{assigned} assigned {Plural(assigned, "ticket")}");
+
+        var comments = await db.TicketComments.IgnoreQueryFilters()
+            .CountAsync(c => c.AuthorId == userId, cancellationToken);
+
+        if (comments > 0) blockers.Add($"{comments} {Plural(comments, "comment")}");
+
+        var articles = await db.KnowledgeArticles.IgnoreQueryFilters()
+            .CountAsync(a => a.AuthorId == userId, cancellationToken);
+
+        if (articles > 0) blockers.Add($"{articles} knowledge {Plural(articles, "article")}");
+
+        var leads = await db.Teams.IgnoreQueryFilters()
+            .CountAsync(t => t.TeamLeadId == userId, cancellationToken);
+
+        if (leads > 0) blockers.Add($"the lead role on {leads} {Plural(leads, "team")}");
+
+        return blockers;
+    }
+
+    private static string Plural(int count, string noun) => count == 1 ? noun : noun + "s";
+}

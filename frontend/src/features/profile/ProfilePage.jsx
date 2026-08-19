@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/services/authService';
 import { ChangePasswordForm } from '@/features/auth/ChangePasswordPage';
+import { ChangeEmailForm } from '@/features/auth/ChangeEmailForm';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -26,6 +27,7 @@ export function ProfilePage() {
 
   const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [changingEmail, setChangingEmail] = useState(false);
   const [revoking, setRevoking] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -115,6 +117,30 @@ export function ProfilePage() {
               {user?.twoFactorEnabled ? 'On' : 'Off'}
             </Badge>
           </div>
+
+          <div className={s.row}>
+            <div>
+              <p className={s.rowTitle}>Email address</p>
+              <p className={s.rowNote}>
+                This is what you sign in with, so changing it needs your password and
+                signs out every session. It is not verified — no mail is sent — so
+                check it carefully.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setChangingEmail((open) => !open)}
+            >
+              {changingEmail ? 'Cancel' : 'Change email'}
+            </Button>
+          </div>
+
+          {changingEmail ? (
+            <div className={s.passwordForm}>
+              <ChangeEmailForm currentEmail={user?.email} />
+            </div>
+          ) : null}
 
           <div className={s.row}>
             <div>

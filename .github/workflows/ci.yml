@@ -1,0 +1,190 @@
+name: CI
+
+# Every push and every pull request. A pipeline that only runs on main tells you
+# something broke after it was already merged.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A second push to the same branch cancels the first. Reviewing a run for a commit
+  # that has already been replaced wastes both the runner and the reader.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  NODE_VERSION: '24'
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    services:
+      # A real SQL Server, not the in-memory provider. Every tenant-isolation defect
+      # this project has found reproduced only against a database that actually
+      # applies global query filters; an in-memory double would have passed while the
+      # API was broken.
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: 'Ci!Runner#Pass2026'
+          MSSQL_PID: Developer
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Ci!Runner#Pass2026' -C -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 30s
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      # Warnings are errors here and nowhere else. Locally a warning is a note to
+      # self; on a shared branch it is something the next person inherits.
+      - name: Build
+        run: dotnet build --no-restore -c Release -warnaserror
+
+      - name: Test
+        env:
+          # The integration suite drops and recreates its own database per run.
+          ConnectionStrings__SupportTicketingDb: >-
+            Server=localhost,1433;Database=SupportTicketing_IntegrationTests;User Id=sa;
+            Password=Ci!Runner#Pass2026;TrustServerCertificate=True;MultipleActiveResultSets=true
+          Jwt__SigningKey: 'ci-only-signing-key-not-used-anywhere-real-000000'
+          Jwt__Issuer: SupportTicketing.Api
+          Jwt__Audience: SupportTicketing.Spa
+          Seed__EnableDemoAccounts: 'true'
+          Seed__DemoPassword: 'DevDemo!Pass#2026'
+          ASPNETCORE_ENVIRONMENT: Development
+        run: >-
+          dotnet test --no-build -c Release
+          --logger "trx;LogFileName=results.trx"
+          --results-directory artifacts/test-results
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: artifacts/test-results
+          retention-days: 14
+
+      # Proves the schema can be built from nothing, which is what a client's server
+      # actually does. A migration that only works against a database already in the
+      # right shape passes every test and fails on the one install that matters.
+      - name: Verify migrations apply to an empty database
+        env:
+          ConnectionStrings__SupportTicketingDb: >-
+            Server=localhost,1433;Database=SupportTicketing_MigrationCheck;User Id=sa;
+            Password=Ci!Runner#Pass2026;TrustServerCertificate=True
+          Jwt__SigningKey: 'ci-only-signing-key-not-used-anywhere-real-000000'
+          Jwt__Issuer: SupportTicketing.Api
+          Jwt__Audience: SupportTicketing.Spa
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.11
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef database update \
+            --project src/SupportTicketing.Infrastructure \
+            --startup-project src/SupportTicketing.Api \
+            --no-build --configuration Release
+
+      # A model change committed without its migration is invisible until somebody
+      # deploys and the schema no longer matches the code.
+      - name: Check for a missing migration
+        env:
+          ConnectionStrings__SupportTicketingDb: >-
+            Server=localhost,1433;Database=SupportTicketing_MigrationCheck;User Id=sa;
+            Password=Ci!Runner#Pass2026;TrustServerCertificate=True
+          Jwt__SigningKey: 'ci-only-signing-key-not-used-anywhere-real-000000'
+          Jwt__Issuer: SupportTicketing.Api
+          Jwt__Audience: SupportTicketing.Spa
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef migrations has-pending-model-changes \
+            --project src/SupportTicketing.Infrastructure \
+            --startup-project src/SupportTicketing.Api \
+            --no-build --configuration Release
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # ci, not install: it installs exactly what the lockfile says and fails if
+      # package.json and the lockfile disagree, which is the point of committing one.
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npx vitest run --reporter=default
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 14
+
+  containers:
+    name: Container images
+    runs-on: ubuntu-latest
+
+    # Only once the code they package is known to work. Building images for a broken
+    # commit produces artefacts nobody should deploy.
+    needs: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Built but not pushed. Publishing to a registry needs credentials and a
+      # decision about where; this proves the Dockerfiles are correct in the meantime.
+      - name: Build the API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/SupportTicketing.Api/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build the frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: frontend/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

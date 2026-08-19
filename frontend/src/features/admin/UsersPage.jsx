@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminKeys, adminService } from '@/services/adminService';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui';
 import { formatRelative } from '@/utils/datetime';
@@ -220,6 +221,7 @@ function RolePicker({ user, roles, onSave, saving }) {
 }
 
 export function UsersPage() {
+  const { can } = useAuth();
   const toast = useToast();
   const queryClient = useQueryClient();
 
@@ -230,6 +232,10 @@ export function UsersPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [secret, setSecret] = useState(null);
+
+  // Deleting answers for the tenant rather than administering it, so it is
+  // gated on organizations.manage — which only Super Admin holds.
+  const canDelete = can('organizations.manage');
 
   const params = { ...applied, page, pageSize: 25 };
 
@@ -297,6 +303,17 @@ export function UsersPage() {
       setSecret(result);
       invalidate();
     },
+  });
+
+  const remove = useMutation({
+    mutationFn: (id) => adminService.users.remove(id),
+    onSuccess: () => {
+      setSelectedId(null);
+      invalidate();
+      toast.success('Account deleted');
+    },
+    onError: (failure) =>
+      toast.error('Could not delete that account', failure.detail),
   });
 
   const revoke = useMutation({
@@ -533,7 +550,22 @@ export function UsersPage() {
                               onClick={() => revoke.mutate(selected.id)}>
                         Sign out everywhere
                       </Button>
+
+                      {canDelete ? (
+                        <Button size="sm" variant="danger" loading={remove.isPending}
+                                onClick={() => remove.mutate(selected.id)}>
+                          Delete permanently
+                        </Button>
+                      ) : null}
                     </div>
+
+                    {canDelete ? (
+                      <p className={s.hint} style={{ marginTop: 'var(--s-2)' }}>
+                        Deleting is refused for any account that has raised or been
+                        assigned a ticket, written a comment or leads a team — that work
+                        would be left without an owner. Deactivate those instead.
+                      </p>
+                    ) : null}
                   </>
                 )}
               </CardBody>

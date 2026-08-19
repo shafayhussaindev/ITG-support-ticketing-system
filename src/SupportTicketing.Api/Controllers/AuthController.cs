@@ -82,6 +82,21 @@ public sealed class AuthController(IDispatcher dispatcher) : ControllerBase
         [FromBody] ChangePasswordRequest request, CancellationToken cancellationToken) =>
         Ok(await dispatcher.SendAsync(new ChangePasswordCommand(request), cancellationToken));
 
+    /// <summary>Changes the caller's own email address.</summary>
+    [HttpPost("change-email")]
+    [SwaggerOperation(Summary = "Change your email address", Description =
+        "The email is the sign-in identity, so the current password is required and "
+        + "every session is revoked. The new address is NOT verified — no mail sender "
+        + "is configured — so a user can set an address they do not own. The change is "
+        + "audited with both the old and new address.")]
+    [ProducesResponseType<ChangeEmailResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ChangeEmailResult>> ChangeEmail(
+        [FromBody] ChangeEmailRequest request, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(new ChangeEmailCommand(request), cancellationToken));
+
     /// <summary>Returns the signed-in user's profile, roles and effective permissions.</summary>
     [HttpGet("me")]
     [SwaggerOperation(Summary = "Current user", Description =

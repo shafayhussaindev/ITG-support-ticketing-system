@@ -42,5 +42,7 @@ export const authService = {
 
   changePassword: (body) => api.post('/auth/change-password', body),
 
+  changeEmail: (body) => api.post('/auth/change-email', body),
+
   me: () => api.get('/auth/me'),
 };

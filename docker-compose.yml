@@ -1,0 +1,92 @@
+# Brings up the whole system: SQL Server, the API, and the frontend behind nginx.
+#
+#   docker compose up --build
+#
+# Then open http://localhost:8080. The API is not published separately — nginx
+# proxies /api and /hubs to it, so the browser talks to one origin and there is no
+# CORS preflight on every request.
+#
+# Secrets come from a .env file beside this one, which is gitignored. Copy
+# .env.example and fill it in; compose refuses to start without the required values
+# rather than falling back to a default somebody would forget to change.
+
+name: support-ticketing
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
+      MSSQL_PID: Developer
+    ports:
+      # Published so a DBA can attach SSMS or Azure Data Studio. Drop this line in
+      # any deployment reachable from outside the host.
+      - "1433:1433"
+    volumes:
+      - db-data:/var/opt/mssql
+    healthcheck:
+      # sqlcmd rather than a port check: the port opens well before the engine will
+      # accept a login, and the API would then fail its first migration.
+      test:
+        - CMD-SHELL
+        - /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: src/SupportTicketing.Api/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__SupportTicketingDb: >-
+        Server=db,1433;Database=SupportTicketing;User Id=sa;
+        Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true
+
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env — at least 32 characters}
+      Jwt__Issuer: SupportTicketing.Api
+      Jwt__Audience: SupportTicketing.Spa
+
+      # nginx is the only thing that talks to the API, so it is the only proxy whose
+      # forwarded headers should be believed. Compose networks are /16 by default.
+      ForwardedHeaders__KnownNetworks__0: 172.16.0.0/12
+
+      # Same-origin through the proxy, so the browser's origin is the nginx one.
+      Cors__AllowedOrigins__0: http://localhost:8080
+
+      # First run only: creates the organization and one Super Admin, and prints a
+      # one-time password to the log. Ignored once an organization exists.
+      Bootstrap__Organization__Name: ${BOOTSTRAP_ORG_NAME:-Support Desk}
+      Bootstrap__Organization__Code: ${BOOTSTRAP_ORG_CODE:-SD}
+      Bootstrap__Organization__TimeZone: ${BOOTSTRAP_TIMEZONE:-UTC}
+      Bootstrap__Administrator__Email: ${BOOTSTRAP_ADMIN_EMAIL:?set BOOTSTRAP_ADMIN_EMAIL in .env}
+    volumes:
+      # Attachments survive a rebuild. Without this every redeploy silently discards
+      # every file anybody uploaded.
+      - attachments:/app/app-data
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Relative, because nginx proxies to the API on the same origin.
+        VITE_API_BASE_URL: /api/v1
+        VITE_SIGNALR_URL: /hubs
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  attachments:
