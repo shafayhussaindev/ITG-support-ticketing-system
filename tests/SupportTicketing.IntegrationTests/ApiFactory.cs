@@ -58,6 +58,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // one, declines to seed, and every test that expects the demo dataset fails.
         // The two are alternatives — bootstrap a real tenant, or seed a demo one — and
         // these tests want the second.
+        // Same trap: the role-account seeder is enabled in the API project's
+        // appsettings.Development.json, and would add one account per role on top of the
+        // demo cast these tests assert against.
+        Environment.SetEnvironmentVariable("Seed__EnableRoleAccounts", "false");
+
         Environment.SetEnvironmentVariable("Bootstrap__Organization__Name", string.Empty);
         Environment.SetEnvironmentVariable("Bootstrap__Organization__Code", string.Empty);
         Environment.SetEnvironmentVariable("Bootstrap__Administrator__Email", string.Empty);

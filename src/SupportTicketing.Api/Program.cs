@@ -362,6 +362,11 @@ await SupportTicketing.Infrastructure.Persistence.Seeding.ProductionBootstrapper
 
 await SupportTicketing.Infrastructure.Persistence.Seeding.DevelopmentSeeder.RunAsync(app.Services, app.Environment.EnvironmentName);
 
+// One sign-in per role, for testing. Gated on Development and on an explicit flag,
+// and adds accounts only — no fictional company, so it is safe on a database that
+// somebody intends to keep.
+await SupportTicketing.Infrastructure.Persistence.Seeding.RoleAccountSeeder.RunAsync(app.Services, app.Environment.EnvironmentName);
+
 app.Run();
 
 /// <summary>Exposed so the integration test host can reference this assembly.</summary>

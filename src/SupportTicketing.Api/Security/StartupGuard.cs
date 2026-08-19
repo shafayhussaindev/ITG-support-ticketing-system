@@ -81,6 +81,15 @@ public static class StartupGuard
                 + "correcting before it meets an environment that does not have that gate.");
         }
 
+        if (configuration.GetValue("Seed:EnableRoleAccounts", false))
+        {
+            problems.Add(
+                "Seed:EnableRoleAccounts is true outside Development. Those accounts share one "
+                + "password that is written down in a test document, so an environment where "
+                + "they could be created is one where the document is a set of working "
+                + "credentials.");
+        }
+
         var origins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 
         if (origins.Length == 0)
