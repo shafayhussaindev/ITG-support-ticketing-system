@@ -136,12 +136,6 @@ export function AppLayout() {
             </div>
           ))}
         </nav>
-
-        <div className={s.sidebarFooter}>
-          {user?.organizationName}
-          <br />
-          Phase 5 build
-        </div>
       </aside>
 
       {sidebarOpen ? (

@@ -229,14 +229,6 @@
   text-transform: uppercase;
 }
 
-.sidebarFooter {
-  margin-top: auto;
-  padding: var(--s-3);
-  border-top: 1px solid var(--c-border);
-  font-size: var(--fs-xs);
-  color: var(--c-text-3);
-}
-
 /* -------------------------------------------------------------------- main */
 .main {
   grid-area: main;
