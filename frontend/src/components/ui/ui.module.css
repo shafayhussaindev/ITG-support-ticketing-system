@@ -11,7 +11,21 @@
   line-height: 1;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  /* transform is included so the press below is smooth rather than a jump. */
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out),
+    box-shadow var(--t-fast) var(--ease-out),
+    transform var(--t-instant) var(--ease-out);
+}
+
+/*
+  A single pixel. Enough to register as a press without moving the label far enough
+  to be read as a layout shift — the point is tactile feedback, not choreography.
+*/
+.button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .button:disabled {
@@ -26,15 +40,23 @@
 .primary {
   background: var(--c-primary);
   color: #fff;
+  box-shadow: var(--shadow-sm);
 }
-.primary:hover:not(:disabled) { background: var(--c-primary-hover); }
+
+.primary:hover:not(:disabled) {
+  background: var(--c-primary-hover);
+  box-shadow: var(--shadow-md);
+}
 
 .secondary {
   background: var(--c-surface);
   color: var(--c-text);
   border-color: var(--c-border-strong);
 }
-.secondary:hover:not(:disabled) { background: var(--c-surface-3); }
+.secondary:hover:not(:disabled) {
+  background: var(--c-surface-3);
+  border-color: var(--c-text-3);
+}
 
 .ghost {
   background: transparent;
@@ -78,6 +100,10 @@
   border: 1px solid var(--c-border-strong);
   border-radius: var(--r-md);
   font-size: var(--fs-md);
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    box-shadow var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out);
   color: var(--c-text);
 }
 
@@ -108,7 +134,13 @@
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
+
+  /* The inset hairline is what stops a card from looking pasted onto the page in
+     dark mode, where a shadow against a near-black background does nothing. */
+  box-shadow: var(--shadow-sm), var(--ring-subtle);
+  transition:
+    box-shadow var(--t-base) var(--ease-out),
+    border-color var(--t-base) var(--ease-out);
 }
 
 .cardHeader {
@@ -118,11 +150,18 @@
   gap: var(--s-3);
   padding: var(--s-3) var(--s-4);
   border-bottom: 1px solid var(--c-border);
+
+  /* The header sits half a shade above the body, which separates the two without
+     spending a second border on it. */
+  background: linear-gradient(var(--c-surface-2), var(--c-surface-2));
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
 }
 
 .cardTitle {
+  font-family: var(--font-display);
   font-size: var(--fs-md);
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .cardSubtitle {
@@ -141,9 +180,13 @@
   padding: 2px 8px;
   border-radius: var(--r-full);
   font-size: var(--fs-xs);
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: 0.2px;
   white-space: nowrap;
+
+  /* currentColor at low alpha: one rule gives every tone its own matching edge,
+     which a pale fill needs to stay legible against a white card. */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
 }
 
 .badgeNeutral { background: var(--c-neutral-soft); color: var(--c-neutral-text); }

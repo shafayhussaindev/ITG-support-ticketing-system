@@ -8,6 +8,8 @@ import {
 import { formatMinutes, reportingKeys, reportingService } from '@/services/reportingService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge, Card, CardBody, CardHeader, ErrorState, Skeleton } from '@/components/ui';
+import { useCountUp, useMotion } from '@/motion/hooks';
+import { DURATION, EASE, gsap } from '@/motion/motion';
 import s from './DashboardPage.module.css';
 
 const PRIORITY_COLOR = {
@@ -36,20 +38,40 @@ const tooltipStyle = {
   color: 'var(--c-text)',
 };
 
-function Kpi({ label, value, hint, tone, onClick }) {
+/**
+ * A single figure.
+ *
+ * Numbers count up to their value; anything else is written straight out. The
+ * distinction matters — counting to "—" or to "4.8 / 5" is nonsense, and a figure
+ * that animates when it has no numeric meaning just looks restless.
+ */
+function Kpi({ label, value, hint, tone, onClick, suffix = '' }) {
   const clickable = typeof onClick === 'function';
+  const numeric = typeof value === 'number' && Number.isFinite(value);
+
+  const counter = useCountUp(numeric ? value : null, {
+    format: (n) => `${Math.round(n)}${suffix}`,
+  });
+
+  // The true figure is rendered; the animation walks it back and counts up. If the
+  // animation never runs, the reader still sees the correct number.
+  const figure = (
+    <span className={`${s.kpiValue} ${tone ? s[tone] : ''}`} ref={numeric ? counter : undefined}>
+      {numeric ? `${value}${suffix}` : value}
+    </span>
+  );
 
   return (
-    <Card className={s.kpiCard}>
+    <Card className={`${s.kpiCard} ${clickable ? s.kpiClickable : ''}`} data-kpi>
       <CardBody className={s.kpiBody}>
         {clickable ? (
           <button type="button" className={s.kpiButton} onClick={onClick}>
-            <span className={`${s.kpiValue} ${tone ? s[tone] : ''}`}>{value}</span>
+            {figure}
             <span className={s.kpiLabel}>{label}</span>
           </button>
         ) : (
           <>
-            <span className={`${s.kpiValue} ${tone ? s[tone] : ''}`}>{value}</span>
+            {figure}
             <span className={s.kpiLabel}>{label}</span>
           </>
         )}
@@ -99,6 +121,32 @@ export function DashboardPage() {
     refetchInterval: 120_000,
   });
 
+  /*
+    Tiles first, then the charts behind them. Keyed on the period rather than on the
+    data, so the two-minute background refresh updates the figures in place instead
+    of replaying the entrance while somebody is reading.
+  */
+  const scope = useMotion(() => {
+    gsap.from('[data-kpi]', {
+      opacity: 0,
+      y: 10,
+      duration: DURATION.base,
+      ease: EASE.out,
+      stagger: { each: 0.022, amount: 0.24 },
+      clearProps: 'opacity,transform',
+    });
+
+    gsap.from('[data-panel]', {
+      opacity: 0,
+      y: 12,
+      duration: DURATION.slow,
+      ease: EASE.out,
+      stagger: 0.05,
+      delay: 0.08,
+      clearProps: 'opacity,transform',
+    });
+  }, [days]);
+
   if (isPending) {
     return (
       <div className={s.kpiGrid}>
@@ -124,7 +172,7 @@ export function DashboardPage() {
   }
 
   return (
-    <>
+    <div ref={scope}>
       <header className={s.header}>
         <div>
           <h2 className={s.title}>Good day, {user?.fullName?.split(' ')[0]}</h2>
@@ -160,7 +208,8 @@ export function DashboardPage() {
         <Kpi label="SLA breached" value={kpis.breached}
              tone={kpis.breached > 0 ? 'danger' : 'success'} />
         <Kpi label="SLA compliance"
-             value={kpis.slaCompliancePercent === null ? '—' : `${kpis.slaCompliancePercent}%`}
+             value={kpis.slaCompliancePercent ?? '—'}
+             suffix="%"
              hint={kpis.slaCompliancePercent === null ? 'No clock has settled yet' : undefined} />
         <Kpi label="Avg first response" value={formatMinutes(kpis.averageFirstResponseMinutes)} />
         <Kpi label="Avg resolution" value={formatMinutes(kpis.averageResolutionMinutes)} />
@@ -177,7 +226,7 @@ export function DashboardPage() {
       </div>
 
       <div className={s.chartGrid}>
-        <Card className={s.wide}>
+        <Card className={s.wide} data-panel>
           <CardHeader title="Volume" subtitle="Raised against resolved, by day" />
           <CardBody>
             <div className={s.chart}>
@@ -208,21 +257,21 @@ export function DashboardPage() {
           </CardBody>
         </Card>
 
-        <Card>
+        <Card data-panel>
           <CardHeader title="Open by priority" subtitle="Click a bar to see those tickets" />
           <CardBody>
             <SegmentChart data={data.byPriority} onSelect={drill} colorFor={(l) => PRIORITY_COLOR[l]} />
           </CardBody>
         </Card>
 
-        <Card>
+        <Card data-panel>
           <CardHeader title="Open by status" subtitle="Click a bar to see those tickets" />
           <CardBody>
             <SegmentChart data={data.byStatus} onSelect={drill} colorFor={() => 'var(--c-primary)'} />
           </CardBody>
         </Card>
 
-        <Card>
+        <Card data-panel>
           <CardHeader title="Open by category" />
           <CardBody>
             <SegmentChart data={data.byCategory} onSelect={drill} colorFor={() => 'var(--c-info)'} />
@@ -230,7 +279,7 @@ export function DashboardPage() {
         </Card>
 
         {data.agentWorkload.length > 0 ? (
-          <Card className={s.wide}>
+          <Card className={s.wide} data-panel>
             <CardHeader
               title="Agent workload"
               subtitle="Weighted by priority, because ten questions are not ten outages"
@@ -276,6 +325,6 @@ export function DashboardPage() {
           </Card>
         ) : null}
       </div>
-    </>
+    </div>
   );
 }

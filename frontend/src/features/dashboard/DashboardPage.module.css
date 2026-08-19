@@ -162,3 +162,34 @@
   min-width: 22px;
   text-align: right;
 }
+
+/*
+  A tile that drills through lifts on hover, and one that does not stays put. The
+  affordance is the movement itself — a cursor change alone is easy to miss in a grid
+  of twelve near-identical tiles.
+*/
+.kpiClickable {
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    box-shadow var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out);
+}
+
+.kpiClickable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md), var(--ring-subtle);
+  border-color: var(--c-border-strong);
+}
+
+.kpiValue {
+  font-family: var(--font-display);
+
+  /* Tabular figures: without them a counting number changes width on every frame
+     and the label beneath it jitters. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kpiClickable:hover { transform: none; }
+}

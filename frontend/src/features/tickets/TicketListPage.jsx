@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button, Card, EmptyState, ErrorState, Skeleton } from '@/components/ui';
 import { PriorityBadge, StatusBadge, TypeBadge } from '@/components/ui/TicketBadges';
 import { formatRelative } from '@/utils/datetime';
+import { useRevealList } from '@/motion/hooks';
 import s from './TicketListPage.module.css';
 
 const STATUSES = [
@@ -47,6 +48,13 @@ export function TicketListPage() {
     // collapse to a spinner on every filter change.
     placeholderData: keepPreviousData,
   });
+
+  /*
+    Rows arrive in order rather than all at once. Keyed on the filters, so paging or
+    re-filtering replays it — which is the moment the reader needs to notice the list
+    changed — while an unrelated re-render does not.
+  */
+  const tableRef = useRevealList('[data-row]', [searchParams.toString()], { distance: 4 });
 
   function update(next) {
     const merged = new URLSearchParams(searchParams);
@@ -222,9 +230,9 @@ export function TicketListPage() {
                     <th scope="col">Raised</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody ref={tableRef}>
                   {data.items.map((ticket) => (
-                    <tr key={ticket.id} className={s.row}>
+                    <tr key={ticket.id} className={s.row} data-row>
                       <td>
                         <Link className={s.number} to={`/tickets/${ticket.id}`}>
                           {ticket.ticketNumber}

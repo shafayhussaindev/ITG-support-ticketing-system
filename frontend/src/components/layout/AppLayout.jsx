@@ -7,6 +7,8 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ConfirmDialog } from '@/components/ui';
 import { NotificationBell } from './NotificationBell';
 import { visibleNavigation } from './navigation';
+import { useActiveIndicator, useMotion } from '@/motion/hooks';
+import { DURATION, EASE, gsap } from '@/motion/motion';
 import s from './AppLayout.module.css';
 
 function initials(fullName = '') {
@@ -30,6 +32,33 @@ export function AppLayout() {
   const [signingOut, setSigningOut] = useState(false);
 
   const groups = useMemo(() => visibleNavigation(can), [can]);
+
+  // The marker tracks the path rather than a NavLink callback, because it has to
+  // know which item won across the whole sidebar, not per-link.
+  const activePath = useMemo(() => {
+    const all = groups.flatMap((group) => group.items).map((item) => item.to);
+    const exact = all.find((to) => to === location.pathname + location.search)
+      ?? all.find((to) => to === location.pathname);
+
+    // Falls back to the longest matching prefix, so /tickets/<id> still marks
+    // "All tickets" rather than leaving the sidebar with nothing selected.
+    return exact
+      ?? all
+        .filter((to) => !to.includes('?') && location.pathname.startsWith(to))
+        .sort((a, b) => b.length - a.length)[0];
+  }, [groups, location.pathname, location.search]);
+
+  const { listRef, markerRef } = useActiveIndicator(activePath);
+
+  // A short cross-fade on route change. Long enough to signal that the page turned,
+  // short enough that nobody navigating quickly ever waits for it.
+  const mainRef = useMotion(() => {
+    gsap.fromTo(
+      '[data-route-content]',
+      { opacity: 0, y: 6 },
+      { opacity: 1, y: 0, duration: DURATION.base, ease: EASE.out, clearProps: 'transform' },
+    );
+  }, [location.pathname]);
 
   // Close the mobile drawer on navigation, otherwise it stays over the new page.
   useEffect(() => {
@@ -76,7 +105,14 @@ export function AppLayout() {
           <span className={s.brandText}>Support Desk</span>
         </div>
 
-        <nav className={s.nav}>
+        <nav className={s.nav} ref={listRef}>
+          {/*
+            One marker for the whole sidebar, moved to whichever item is active. Two
+            separate highlights fading in and out would read as two things; a single
+            element travelling reads as what it is — the same marker relocating.
+          */}
+          <span className={s.navMarker} ref={markerRef} aria-hidden="true" />
+
           {groups.map((group) => (
             <div key={group.label} className={s.navGroup}>
               <p className={s.navGroupLabel}>{group.label}</p>
@@ -85,6 +121,7 @@ export function AppLayout() {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  data-active={item.to === activePath ? 'true' : undefined}
                   className={({ isActive }) =>
                     [s.navLink, isActive ? s.navLinkActive : ''].filter(Boolean).join(' ')
                   }
@@ -170,8 +207,8 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className={s.main} id="main-content" tabIndex={-1}>
-        <div className={s.content}>
+      <main className={s.main} id="main-content" tabIndex={-1} ref={mainRef}>
+        <div className={s.content} data-route-content>
           {/* Keyed on the path so a thrown error clears when the user navigates away. */}
           <ErrorBoundary key={location.pathname}>
             <Outlet />

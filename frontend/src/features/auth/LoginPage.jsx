@@ -7,6 +7,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Button, Field, LoadingState } from '@/components/ui';
+import { useMotion } from '@/motion/hooks';
+import { DURATION, EASE, gsap } from '@/motion/motion';
 import s from './LoginPage.module.css';
 
 const schema = z.object({
@@ -20,6 +22,25 @@ const schema = z.object({
 });
 
 export function LoginPage() {
+  /*
+    The one screen where a considered entrance is worth the milliseconds: it is the
+    first thing anybody sees, and there is no work being interrupted. A timeline
+    rather than parallel tweens so the panel settles before the form follows it in.
+  */
+  const scope = useMotion(() => {
+    const timeline = gsap.timeline({ defaults: { ease: EASE.out } });
+
+    timeline
+      .from('[data-login-aside]', { opacity: 0, x: -16, duration: DURATION.slow })
+      .from('[data-login-point]', {
+        opacity: 0, x: -10, duration: DURATION.base, stagger: 0.06,
+      }, '-=0.2')
+      .from('[data-login-card]', { opacity: 0, y: 14, duration: DURATION.slow }, '-=0.35')
+      .from('[data-login-field]', {
+        opacity: 0, y: 8, duration: DURATION.base, stagger: 0.05,
+      }, '-=0.25');
+  }, []);
+
   const { login, isAuthenticated, isRestoring } = useAuth();
   const { theme, toggle } = useTheme();
   const toast = useToast();
@@ -102,8 +123,8 @@ export function LoginPage() {
   }
 
   return (
-    <div className={s.page}>
-      <aside className={s.aside}>
+    <div className={s.page} ref={scope}>
+      <aside className={s.aside} data-login-aside>
         <div className={s.asideBrand}>
           <span className={s.asideMark} aria-hidden="true">
             ST
@@ -119,13 +140,13 @@ export function LoginPage() {
           </p>
 
           <ul className={s.asideList}>
-            <li>
+            <li data-login-point>
               <span aria-hidden="true">▸</span> SLA tracked against business hours and holidays
             </li>
-            <li>
+            <li data-login-point>
               <span aria-hidden="true">▸</span> Every change attributed to a person, a rule, or AI
             </li>
-            <li>
+            <li data-login-point>
               <span aria-hidden="true">▸</span> Internal notes never visible to requesters
             </li>
           </ul>
@@ -134,9 +155,9 @@ export function LoginPage() {
         <p className={s.asideFoot}>Phase 5 build — tickets, SLA, reporting, knowledge base and AI assistance</p>
       </aside>
 
-      <div className={s.panel}>
+      <div className={s.panel} data-login-card>
         <form className={s.form} onSubmit={handleSubmit(onSubmit)} noValidate>
-          <div>
+          <div data-login-field>
             <h1 className={s.title}>Sign in</h1>
             <p className={s.subtitle}>Use your work email address.</p>
           </div>
@@ -150,26 +171,30 @@ export function LoginPage() {
             </div>
           ) : null}
 
-          <Field
-            label="Email"
-            type="email"
-            autoComplete="username"
-            placeholder="you@company.com"
-            required
-            autoFocus
-            error={errors.email?.message}
-            {...register('email')}
-          />
+          <div data-login-field>
+            <Field
+              label="Email"
+              type="email"
+              autoComplete="username"
+              placeholder="you@company.com"
+              required
+              autoFocus
+              error={errors.email?.message}
+              {...register('email')}
+            />
+          </div>
 
-          <Field
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="••••••••••••"
-            required
-            error={errors.password?.message}
-            {...register('password')}
-          />
+          <div data-login-field>
+            <Field
+              label="Password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="••••••••••••"
+              required
+              error={errors.password?.message}
+              {...register('password')}
+            />
+          </div>
 
           {needsTwoFactor ? (
             <Field
@@ -184,9 +209,11 @@ export function LoginPage() {
             />
           ) : null}
 
-          <Button type="submit" size="lg" fullWidth loading={isSubmitting}>
-            {isSubmitting ? 'Signing in' : 'Sign in'}
-          </Button>
+          <div data-login-field>
+            <Button type="submit" size="lg" fullWidth loading={isSubmitting}>
+              {isSubmitting ? 'Signing in' : 'Sign in'}
+            </Button>
+          </div>
 
           <div className={s.meta}>
             <span>Forgotten your password? Contact your administrator.</span>

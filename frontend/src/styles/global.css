@@ -94,6 +94,14 @@ a:hover {
   border: 2px solid var(--c-bg);
 }
 
+/*
+  Reduced motion. GSAP is told separately, in motion.js — a CSS rule cannot reach a
+  JavaScript tween, and half a solution here would be worse than none.
+
+  Durations are collapsed rather than set to none: `animation: none` can leave an
+  element stranded mid-keyframe, whereas 0.01ms runs it to completion instantly, so
+  anything only visible at the end of its entrance still ends up visible.
+*/
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -101,5 +109,33 @@ a:hover {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+}
+
+
+
+/*
+  Numerals that do not change width. Applied to the places a figure updates in place
+  or sits in a column: without it, a counting KPI jitters and a table of durations
+  fails to line up.
+*/
+.tabular,
+[data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Headings borrow the display optical size — tighter, better fitted at large sizes. */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}
+
+/*
+  A slightly heavier weight and looser tracking for the smallest labels, which is
+  where a variable face otherwise turns to mush at 11px.
+*/
+::selection {
+  background: var(--c-primary-soft);
+  color: var(--c-primary-text);
 }

@@ -137,6 +137,28 @@ frontend/src/
   utils/        permission keys and scope labels
 ```
 
+### Motion
+
+GSAP drives the interface's movement through one shared vocabulary in
+[`src/motion`](frontend/src/motion), so the whole application moves in a single accent
+rather than each screen inventing its own. Durations are 90–380ms: this is a tool
+people use all day, and motion here exists to show where something came from, not to
+be admired.
+
+Two rules the implementation is built around, both learned by breaking it:
+
+- **The DOM always carries the truth.** A counting KPI renders its real figure and the
+  animation walks it *backwards* to the starting point. Rendering zero and letting the
+  tween supply the number means any failure leaves a dashboard confidently reporting
+  no open tickets when there are five.
+- **Do not animate what nobody is looking at.** Browsers stop servicing
+  `requestAnimationFrame` in a hidden tab, so an entrance begun there writes its
+  opening state — opacity zero — and never advances. Motion is skipped entirely when
+  the page is hidden, which leaves everything in its natural, visible state.
+
+`prefers-reduced-motion` is honoured in both CSS and GSAP; for some people motion is
+not a preference but a migraine.
+
 ### Decisions worth knowing
 
 **The access token lives in memory; only the refresh token is persisted.** An XSS bug
@@ -383,14 +405,14 @@ Stack traces and SQL are never serialised.
 dotnet test
 ```
 
-**249 backend tests and 24 frontend tests, all passing** as of the last run:
+**249 backend tests and 30 frontend tests, all passing** as of the last run:
 
 | Project | Tests | Covers |
 |---|---|---|
 | `SupportTicketing.UnitTests` | 94 | Password hashing, priority matrix, workflow graph, business-hours arithmetic including DST, SLA state machine |
 | `SupportTicketing.ArchitectureTests` | 7 | Layer dependencies, no entities on controllers, anonymous-endpoint allowlist, tenant-filter bypass allowlist, no SQL Server provider types in Application |
 | `SupportTicketing.IntegrationTests` | 148 | Auth, ticket lifecycle, tenant isolation, SLA and escalation sweeps, report scoping, CSV export and formula neutralisation, audit filtering, the whole administration surface including permission guards and secret masking, knowledge base, satisfaction, ERP links and the AI fallback path — against a real SQL Server database |
-| `frontend` (Vitest) | 24 | Token store, single-flight refresh, navigation filtering, SLA formatting |
+| `frontend` (Vitest) | 30 | Token store, single-flight refresh, navigation filtering, SLA formatting, and the motion fail-safe — that a figure is correct even when no animation runs |
 
 Integration tests use a **real SQL Server database** (`SupportTicketing_IntegrationTests`,
 dropped and recreated per run), not the in-memory provider. Every defect found while

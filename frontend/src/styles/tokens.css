@@ -58,9 +58,10 @@
   --c-priority-low: #4a5670;
 
   /* ---- geometry ---- */
-  --r-sm: 4px;
-  --r-md: 6px;
-  --r-lg: 10px;
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
   --r-full: 999px;
 
   --s-1: 4px;
@@ -72,8 +73,23 @@
   --s-7: 48px;
 
   /* ---- type ---- */
-  --font-sans: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'Cascadia Mono', 'SF Mono', Menlo, Consolas, monospace;
+  /*
+    Segoe UI Variable first: it is the Windows 11 UI face and is noticeably better
+    fitted and better hinted than the static Segoe UI that preceded it. Everything
+    after it is a fallback for a machine that does not have it. No web font is
+    loaded — a support desk should not wait on a font server to render a queue.
+  */
+  --font-sans:
+    'Segoe UI Variable Text', 'Segoe UI Variable', system-ui, -apple-system,
+    'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+
+  /* The display face differs only in optical size, which is the point of a variable
+     family: headings get tighter spacing without a second typeface. */
+  --font-display:
+    'Segoe UI Variable Display', 'Segoe UI Variable Text', system-ui, -apple-system,
+    'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+
+  --font-mono: 'Cascadia Mono', 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 
   --fs-xs: 11px;
   --fs-sm: 12.5px;
@@ -82,12 +98,42 @@
   --fs-xl: 20px;
   --fs-2xl: 26px;
 
-  --shadow-sm: 0 1px 2px rgba(16, 26, 44, 0.07);
-  --shadow-md: 0 2px 8px rgba(16, 26, 44, 0.1);
-  --shadow-lg: 0 8px 28px rgba(16, 26, 44, 0.16);
+  /*
+    Two shadows per level: a tight contact shadow that grounds the element, and a
+    wider ambient one. A single blur reads as a sticker; the pair reads as depth.
+    Both are tinted with the text colour rather than pure black, which keeps them
+    from going muddy over a cool background.
+  */
+  --shadow-sm:
+    0 1px 1px rgba(16, 26, 44, 0.04),
+    0 1px 3px rgba(16, 26, 44, 0.06);
+  --shadow-md:
+    0 1px 2px rgba(16, 26, 44, 0.05),
+    0 4px 12px -2px rgba(16, 26, 44, 0.1);
+  --shadow-lg:
+    0 2px 4px rgba(16, 26, 44, 0.06),
+    0 12px 32px -8px rgba(16, 26, 44, 0.18);
+
+  /* A hairline that survives a dark theme, where a border colour alone looks flat. */
+  --ring-subtle: inset 0 0 0 1px rgba(16, 26, 44, 0.04);
 
   --layout-sidebar: 236px;
   --layout-topbar: 52px;
+
+  /* ---- motion ----
+     Durations are short on purpose. This is a tool people use all day: motion here
+     exists to show where something came from, not to be admired. Anything past
+     ~300ms starts to feel like waiting. */
+  --t-instant: 90ms;
+  --t-fast: 160ms;
+  --t-base: 240ms;
+  --t-slow: 380ms;
+
+  /* Decelerating, so movement arrives rather than stops. The overshoot easing is
+     reserved for things appearing from nothing. */
+  --ease-out: cubic-bezier(0.22, 0.75, 0.28, 1);
+  --ease-in-out: cubic-bezier(0.65, 0.02, 0.28, 1);
+  --ease-spring: cubic-bezier(0.22, 1.2, 0.36, 1);
 }
 
 [data-theme='dark'] {
@@ -134,7 +180,17 @@
   --c-priority-medium: #5c9ce0;
   --c-priority-low: #8593a9;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.55);
+  /* Depth in a dark theme comes mostly from the light edge, not the shadow: a
+     black blur on a near-black surface is invisible. */
+  --shadow-sm:
+    0 1px 1px rgba(0, 0, 0, 0.4),
+    0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 4px 12px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 12px 32px -8px rgba(0, 0, 0, 0.6);
+
+  --ring-subtle: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
