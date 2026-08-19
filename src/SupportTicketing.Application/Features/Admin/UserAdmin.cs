@@ -27,7 +27,9 @@ public sealed class ListUsersQueryHandler(IAppDbContext db, ICurrentUser current
         var page = p.Page < 1 ? 1 : p.Page;
         var pageSize = Math.Clamp(p.PageSize, 1, PagedQuery.MaxPageSize);
 
-        var users = db.Users.AsNoTracking();
+        // A deleted account keeps its row so tickets stay attributable, but it is not
+        // a person any more and has no business in a list of people.
+        var users = db.Users.AsNoTracking().Where(u => !u.IsAnonymised);
 
         if (!string.IsNullOrWhiteSpace(p.Search))
         {
@@ -653,38 +655,47 @@ public sealed class RevokeUserSessionsCommandHandler(
 
 // --------------------------------------------------------------------- delete
 
-public sealed record DeleteUserCommand(Guid Id) : ICommand<bool>;
+public sealed record DeleteUserCommand(Guid Id) : ICommand<DeleteUserResult>;
+
+public sealed record DeleteUserResult(bool RowRemoved, string Message);
 
 /// <summary>
-/// Removes an account outright, for a Super Admin.
+/// Deletes an account, for a Super Admin.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Deliberately narrow. An account that has raised a ticket, been assigned one, or
-/// written a comment cannot be deleted, because the rows referencing it are the work
-/// itself — removing the account would either destroy that work or leave a ticket with
-/// no requester. Deactivation is the answer there, and the refusal says so.
+/// Two outcomes, decided by whether the account left anything behind.
 /// </para>
 /// <para>
-/// What this is for is the account that should not exist: a typo in an email address,
-/// a duplicate, someone provisioned for a role they never took up. Those accumulate,
-/// and deactivating them leaves a user list nobody can read.
+/// An account that owns nothing — a mistyped address, a duplicate, somebody
+/// provisioned for a role they never took up — is removed outright, row and all.
 /// </para>
 /// <para>
-/// Audit rows survive. They hold the actor's name and email as a snapshot rather than
-/// a foreign key, precisely so history stays readable when the account behind it is
-/// gone.
+/// An account that raised tickets, was assigned them, or wrote comments is
+/// <em>anonymised</em>: the name becomes "Deleted user", the email an unroutable
+/// placeholder, the password hash a random value, and the row is left in place. It has
+/// to be. Every ticket points at it, and a system whose whole claim is that changes are
+/// attributable cannot answer "who raised this?" with a dangling identifier. What a
+/// reader sees on the ticket is that the person is gone, which is the honest answer —
+/// and what is actually destroyed is the identity, which is the part a deletion is
+/// really about.
+/// </para>
+/// <para>
+/// Anonymised accounts are hidden from every list where somebody picks a person, so
+/// they do not accumulate in the interface. Audit rows are untouched: they hold the
+/// name and email as a snapshot rather than a foreign key, which is what lets an
+/// investigation reconstruct who did what before the account was removed.
 /// </para>
 /// </remarks>
 public sealed class DeleteUserCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, IAuditWriter audit)
-    : ICommandHandler<DeleteUserCommand, bool>
+    IAppDbContext db, ICurrentUser currentUser, IPasswordHasher hasher, IAuditWriter audit, IClock clock)
+    : ICommandHandler<DeleteUserCommand, DeleteUserResult>
 {
-    public async Task<bool> HandleAsync(
+    public async Task<DeleteUserResult> HandleAsync(
         DeleteUserCommand command, CancellationToken cancellationToken)
     {
-        // Not users.manage. Deleting is a different act from administering, and the
-        // one person who should be able to do it is the one who answers for the tenant.
+        // Not users.manage. Deleting is a different act from administering, and the one
+        // person who should be able to do it is the one who answers for the tenant.
         currentUser.Require(Permissions.Administration.ManageOrganizations);
 
         if (command.Id == currentUser.UserId)
@@ -697,21 +708,18 @@ public sealed class DeleteUserCommandHandler(
             .FirstOrDefaultAsync(u => u.Id == command.Id, cancellationToken)
             ?? throw new NotFoundException(nameof(User), command.Id);
 
-        var blockers = await DescribeWorkAsync(db, user.Id, cancellationToken);
-
-        if (blockers.Count > 0)
+        if (user.IsAnonymised)
         {
             throw new ConflictException(
-                "user_owns_work",
-                $"{user.Email} cannot be deleted because the account owns "
-                + $"{string.Join(", ", blockers)}. Removing it would leave that work "
-                + "without an owner, or destroy it. Deactivate the account instead — "
-                + "that revokes every session and keeps the history readable.");
+                "already_deleted", "That account has already been deleted.");
         }
 
-        // Rows that exist only to describe the account, and mean nothing once it is
-        // gone. Removed explicitly rather than by cascade, so what is destroyed is
-        // written down here rather than inferred from the schema.
+        var previousEmail = user.Email;
+        var previousName = user.FullName;
+        var owned = await CountOwnedWorkAsync(db, user.Id, cancellationToken);
+
+        // Membership, sessions and preferences describe the account rather than its
+        // work, and mean nothing once it is gone. Removed in both cases.
         await db.UserRoles.Where(r => r.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
         await db.UserSkills.Where(r => r.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
         await db.UserPermissionOverrides.Where(r => r.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
@@ -720,59 +728,108 @@ public sealed class DeleteUserCommandHandler(
         await db.NotificationPreferences.Where(r => r.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
         await db.Notifications.Where(r => r.RecipientUserId == user.Id).ExecuteDeleteAsync(cancellationToken);
 
-        // Written before the row goes, so the audit entry carries the name and email
-        // of an account that will not be there to look up afterwards.
+        // A team pointing at a departed lead would fail to load. Cleared rather than
+        // reassigned, because who leads it next is not this command's decision.
+        await db.Teams.Where(t => t.TeamLeadId == user.Id)
+            .ExecuteUpdateAsync(t => t.SetProperty(x => x.TeamLeadId, (Guid?)null), cancellationToken);
+
+        // Written before the change, so the entry carries the identity that is about to
+        // stop existing.
         await audit.WriteAsync(
-            AuditAction.Deleted, nameof(User), user.Id, user.Email,
-            changes: new { user.Email, Name = user.FullName, Permanent = true },
+            AuditAction.Deleted, nameof(User), user.Id, previousEmail,
+            changes: new
+            {
+                Email = previousEmail,
+                Name = previousName,
+                Anonymised = owned.Total > 0,
+                Retained = owned.Describe(),
+            },
             cancellationToken: cancellationToken);
 
-        db.Users.Remove(user);
+        if (owned.Total == 0)
+        {
+            db.Users.Remove(user);
+            await db.SaveChangesAsync(cancellationToken);
+
+            return new DeleteUserResult(
+                true, $"{previousEmail} has been deleted. The account owned no work.");
+        }
+
+        Anonymise(user, hasher, clock.UtcNow);
         await db.SaveChangesAsync(cancellationToken);
 
-        return true;
+        return new DeleteUserResult(
+            false,
+            $"{previousEmail} has been deleted. {owned.Describe()} remain and now show the "
+            + "person as \"Deleted user\", because that history has to stay attributable.");
     }
 
     /// <summary>
-    /// Describes, in words, what the account owns — for the refusal message.
+    /// Strips everything that identifies the person, leaving the row references depend on.
     /// </summary>
-    /// <remarks>
-    /// Counting rather than existence-checking so the message can say "four tickets"
-    /// instead of "some work", which is the difference between an administrator
-    /// knowing what to reassign and having to go and find out.
-    /// </remarks>
-    private static async Task<List<string>> DescribeWorkAsync(
-        IAppDbContext db, Guid userId, CancellationToken cancellationToken)
+    private static void Anonymise(User user, IPasswordHasher hasher, DateTime now)
     {
-        var blockers = new List<string>();
+        // Reads naturally wherever a name is displayed: "Deleted user" appears in a
+        // ticket's requester field exactly where the person's name used to, so none of
+        // the forty-odd places that project a name needed changing.
+        user.FirstName = "Deleted";
+        user.LastName = "user";
 
-        var raised = await db.Tickets.IgnoreQueryFilters()
-            .CountAsync(t => t.RequesterId == userId, cancellationToken);
+        // .invalid is reserved by RFC 2606 and can never resolve, so this cannot
+        // accidentally become a routable address. The identifier keeps it unique.
+        user.Email = $"deleted-{user.Id:N}@deleted.invalid";
+        user.NormalizedEmail = user.Email.ToUpperInvariant();
 
-        if (raised > 0) blockers.Add($"{raised} raised {Plural(raised, "ticket")}");
+        user.PhoneNumber = null;
+        user.JobTitle = null;
+        user.AvatarUrl = null;
+        user.TwoFactorSecret = null;
+        user.TwoFactorEnabled = false;
 
-        var assigned = await db.Tickets.IgnoreQueryFilters()
-            .CountAsync(t => t.AssignedAgentId == userId, cancellationToken);
+        // A fresh random hash rather than a blank one: the credential is destroyed
+        // rather than disabled, so flipping the flag back could not restore access.
+        user.PasswordHash = hasher.Hash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
 
-        if (assigned > 0) blockers.Add($"{assigned} assigned {Plural(assigned, "ticket")}");
-
-        var comments = await db.TicketComments.IgnoreQueryFilters()
-            .CountAsync(c => c.AuthorId == userId, cancellationToken);
-
-        if (comments > 0) blockers.Add($"{comments} {Plural(comments, "comment")}");
-
-        var articles = await db.KnowledgeArticles.IgnoreQueryFilters()
-            .CountAsync(a => a.AuthorId == userId, cancellationToken);
-
-        if (articles > 0) blockers.Add($"{articles} knowledge {Plural(articles, "article")}");
-
-        var leads = await db.Teams.IgnoreQueryFilters()
-            .CountAsync(t => t.TeamLeadId == userId, cancellationToken);
-
-        if (leads > 0) blockers.Add($"the lead role on {leads} {Plural(leads, "team")}");
-
-        return blockers;
+        user.IsActive = false;
+        user.IsAnonymised = true;
+        user.AnonymisedAtUtc = now;
+        user.MustChangePassword = false;
+        user.LockoutEndUtc = null;
+        user.AccessFailedCount = 0;
+        user.IsAvailableForAssignment = false;
     }
 
-    private static string Plural(int count, string noun) => count == 1 ? noun : noun + "s";
+    private sealed record OwnedWork(int Raised, int Assigned, int Comments, int Articles)
+    {
+        internal int Total => Raised + Assigned + Comments + Articles;
+
+        /// <summary>
+        /// Names what is being kept, in words.
+        /// </summary>
+        /// <remarks>
+        /// Counted rather than merely detected, so the confirmation can say "4 tickets"
+        /// instead of "some work" — the difference between an administrator
+        /// understanding what just happened and guessing at it.
+        /// </remarks>
+        internal string Describe()
+        {
+            var parts = new List<string>();
+
+            if (Raised > 0) parts.Add($"{Raised} raised {Plural(Raised, "ticket")}");
+            if (Assigned > 0) parts.Add($"{Assigned} assigned {Plural(Assigned, "ticket")}");
+            if (Comments > 0) parts.Add($"{Comments} {Plural(Comments, "comment")}");
+            if (Articles > 0) parts.Add($"{Articles} knowledge {Plural(Articles, "article")}");
+
+            return parts.Count == 0 ? "Nothing" : string.Join(", ", parts);
+        }
+
+        private static string Plural(int count, string noun) => count == 1 ? noun : noun + "s";
+    }
+
+    private static async Task<OwnedWork> CountOwnedWorkAsync(
+        IAppDbContext db, Guid userId, CancellationToken cancellationToken) => new(
+        await db.Tickets.IgnoreQueryFilters().CountAsync(t => t.RequesterId == userId, cancellationToken),
+        await db.Tickets.IgnoreQueryFilters().CountAsync(t => t.AssignedAgentId == userId, cancellationToken),
+        await db.TicketComments.IgnoreQueryFilters().CountAsync(c => c.AuthorId == userId, cancellationToken),
+        await db.KnowledgeArticles.IgnoreQueryFilters().CountAsync(a => a.AuthorId == userId, cancellationToken));
 }

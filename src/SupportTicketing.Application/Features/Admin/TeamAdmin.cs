@@ -215,6 +215,13 @@ public sealed class SaveTeamMemberCommandHandler(
             .FirstOrDefaultAsync(u => u.Id == command.Request.UserId, cancellationToken)
             ?? throw new NotFoundException(nameof(User), command.Request.UserId);
 
+        // A deleted account is not a person who can be given work.
+        if (user.IsAnonymised)
+        {
+            throw new ConflictException(
+                "user_deleted", "That account has been deleted and cannot join a team.");
+        }
+
         var membership = await db.TeamMembers.AsTracking()
             .FirstOrDefaultAsync(m => m.TeamId == team.Id && m.UserId == user.Id, cancellationToken);
 

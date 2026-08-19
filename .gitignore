@@ -34,7 +34,10 @@ secrets.json
 ## Runtime artefacts
 logs/
 *.log
-app-data/attachments/
+# Uploaded attachments, wherever the API happens to be started from. A pattern
+# containing a slash is anchored to this file's directory, so the earlier
+# 'app-data/attachments/' missed the copy that appears under src/…Api/.
+**/app-data/
 
 ## OS
 Thumbs.db

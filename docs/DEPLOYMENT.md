@@ -229,6 +229,33 @@ the new capability can reach it. Roles an administrator has edited are left alon
 4. Check for `No organization exists and Bootstrap is not configured`. Set the
    `Bootstrap__*` variables and restart.
 
+### Somebody has left the company
+
+**Administration → Users → Delete**, which only a Super Admin can do. What happens next
+depends on whether the account left anything behind, and the confirmation dialog says
+which before you commit to it.
+
+An account that owns nothing is removed outright. An account that raised tickets, was
+assigned them, resolved them, wrote comments or authored knowledge articles is
+**anonymised** instead: the name becomes "Deleted user", the email an address that can
+never be delivered to, and the password is destroyed rather than merely disabled, so
+nobody can sign in as them again. The row itself stays, because every ticket points at
+it — a system whose whole claim is that changes are attributable cannot answer "who
+raised this?" with a dangling reference.
+
+The practical effect on the ticket list is that the person's name is replaced by
+"Deleted user" everywhere it appeared, and they disappear from every list where somebody
+picks an assignee. The tickets, the comments and the resolutions are untouched.
+
+Audit entries are the exception, deliberately: they store the actor's name and email as
+a snapshot rather than a link, so an investigation can still reconstruct who did what
+before the account was removed. That is the point of an audit trail, and it is why the
+deletion is recorded in one as well.
+
+**This cannot be undone.** There is no restore. If you only want to stop somebody signing
+in — someone on leave, a contract between renewals — use **Deactivate** instead, which is
+reversible and keeps the name on their tickets.
+
 ### One person cannot sign in
 
 Their account is probably locked after failed attempts, or deactivated. As an

@@ -77,7 +77,11 @@ public static class DevelopmentSeeder
 
         if (await db.Organizations.AnyAsync())
         {
-            logger.LogInformation("Demo seeding skipped: the database already contains organizations.");
+            logger.LogInformation(
+                "Demo seeding skipped: the database already contains organizations. "
+                + "Checking whether any demo account needs restoring.");
+
+            await RestoreMissingDemoUsersAsync(db, hasher, ResolvePassword(configuration).Password, logger);
             return;
         }
 
@@ -179,6 +183,191 @@ public static class DevelopmentSeeder
         CreatedAtUtc = now
     };
 
+    /// <summary>
+    /// The demo cast, as data rather than as a hard-coded block inside the tenant seeder.
+    /// </summary>
+    /// <remarks>
+    /// Shared with <see cref="RestoreMissingDemoUsersAsync"/>, which is the whole point of
+    /// lifting it out: one list means a restored account is the same account, with the
+    /// same role and the same team, rather than a near-copy that drifts from the
+    /// credentials sheet the testers are reading from.
+    /// </remarks>
+    private static (string Local, string First, string Last, string Role, string? TeamCode)[]
+        DemoUsers(bool isPrimary) => isPrimary
+        ?
+        [
+            ("requester",  "Rabia",  "Khan",     RoleNames.Requester,           null),
+            ("requester2", "Omar",   "Siddiqui", RoleNames.Requester,           null),
+            ("agent",      "Ayesha", "Malik",    RoleNames.SupportAgent,        "ITSUP"),
+            ("agent2",     "Bilal",  "Ahmed",    RoleNames.SupportAgent,        "ITSUP"),
+            ("erpagent",   "Sana",   "Iqbal",    RoleNames.SupportAgent,        "ERPSUP"),
+            ("lead",       "Imran",  "Sheikh",   RoleNames.TeamLead,            "ITSUP"),
+            ("specialist", "Zainab", "Raza",     RoleNames.TechnicalSpecialist, "ERPSUP"),
+            ("manager",    "Faisal", "Qureshi",  RoleNames.Manager,             null),
+            ("admin",      "Nadia",  "Hussain",  RoleNames.Administrator,       null),
+            ("superadmin", "Kamran", "Ali",      RoleNames.SuperAdmin,          null)
+        ]
+        :
+        [
+            ("requester", "Emma",   "Clarke", RoleNames.Requester,    null),
+            ("agent",     "Daniel", "Reid",   RoleNames.SupportAgent, "ITSUP"),
+            ("admin",     "Sophie", "Turner", RoleNames.Administrator, null)
+        ];
+
+    private static TeamRole TeamRoleFor(string roleName) => roleName switch
+    {
+        RoleNames.TeamLead => TeamRole.Lead,
+        RoleNames.TechnicalSpecialist => TeamRole.Specialist,
+        _ => TeamRole.Member,
+    };
+
+    /// <summary>
+    /// Puts back any demo account that has gone missing from an already-seeded database.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The full seeder is all-or-nothing: it refuses to touch a database that already has
+    /// an organization, because re-running it would duplicate every ticket. That is the
+    /// right call for the data, and the wrong one for the accounts — testing the delete
+    /// feature removes a demo login, and the credentials sheet then documents an account
+    /// that no longer exists.
+    /// </para>
+    /// <para>
+    /// So the accounts get their own reconciliation. Only genuinely absent ones are
+    /// created; an account that exists is left exactly as it is, including its password,
+    /// because a tester may have changed it deliberately. Anonymised rows are ignored
+    /// rather than revived — their identity was destroyed on purpose, and the restored
+    /// account is a new person who happens to share an address, not the old one brought
+    /// back.
+    /// </para>
+    /// <para>
+    /// Development only, behind the same two gates as the seeder itself. The tickets the
+    /// deleted person raised keep showing "Deleted user", which is correct: this restores
+    /// the login, not the history.
+    /// </para>
+    /// </remarks>
+    private static async Task RestoreMissingDemoUsersAsync(
+        AppDbContext db, IPasswordHasher hasher, string password, ILogger logger)
+    {
+        var now = DateTime.UtcNow;
+        var hash = hasher.Hash(password);
+        var restored = new List<string>();
+
+        var organizations = await db.Organizations.OrderBy(o => o.CreatedAtUtc).ToListAsync();
+
+        foreach (var organization in organizations)
+        {
+            var orgId = organization.Id;
+            var domain = organization.Code.ToLowerInvariant() + ".test";
+            var isPrimary = organization.Id == organizations[0].Id;
+
+            var expected = DemoUsers(isPrimary);
+            var wantedEmails = expected.Select(u => $"{u.Local}@{domain}".ToUpperInvariant()).ToHashSet(StringComparer.Ordinal);
+
+            var present = await db.Users
+                .Where(u => u.OrganizationId == orgId && wantedEmails.Contains(u.NormalizedEmail))
+                .Select(u => u.NormalizedEmail)
+                .ToListAsync();
+
+            var have = present.ToHashSet(StringComparer.Ordinal);
+
+            var absent = expected
+                .Where(u => !have.Contains($"{u.Local}@{domain}".ToUpperInvariant()))
+                .ToList();
+
+            if (absent.Count == 0)
+            {
+                continue;
+            }
+
+            var roleByName = await db.Roles
+                .Where(r => r.OrganizationId == orgId)
+                .ToDictionaryAsync(r => r.Name, StringComparer.Ordinal);
+
+            var teamIdByCode = await db.Teams
+                .Where(t => t.OrganizationId == orgId)
+                .ToDictionaryAsync(t => t.Code, t => t.Id, StringComparer.Ordinal);
+
+            var officeId = await db.Offices
+                .Where(o => o.OrganizationId == orgId)
+                .Select(o => (Guid?)o.Id)
+                .FirstOrDefaultAsync();
+
+            var departmentIdByCode = await db.Departments
+                .Where(d => d.OrganizationId == orgId)
+                .ToDictionaryAsync(d => d.Code, d => d.Id, StringComparer.Ordinal);
+
+            foreach (var (local, first, last, roleName, teamCode) in absent)
+            {
+                // A role that does not exist means the tenant was built by something
+                // other than this seeder. Skipping is safer than inventing one.
+                if (!roleByName.TryGetValue(roleName, out var role))
+                {
+                    logger.LogWarning(
+                        "Cannot restore {Local}@{Domain}: the role '{Role}' does not exist in {Organization}.",
+                        local, domain, roleName, organization.Code);
+                    continue;
+                }
+
+                var email = $"{local}@{domain}";
+
+                var user = new User
+                {
+                    OrganizationId = orgId,
+                    Email = email,
+                    NormalizedEmail = email.ToUpperInvariant(),
+                    FirstName = first,
+                    LastName = last,
+                    PasswordHash = hash,
+                    JobTitle = roleName,
+                    TimeZoneId = organization.TimeZoneId,
+                    OfficeId = officeId,
+                    DepartmentId = roleName == RoleNames.Requester
+                        ? departmentIdByCode.GetValueOrDefault("OPS")
+                        : departmentIdByCode.GetValueOrDefault("IT"),
+                    IsActive = true,
+                    IsAvailableForAssignment = true,
+                    PasswordChangedAtUtc = now,
+                    CreatedAtUtc = now
+                };
+
+                db.Users.Add(user);
+                db.UserRoles.Add(new UserRole
+                {
+                    UserId = user.Id,
+                    RoleId = role.Id,
+                    GrantedAtUtc = now
+                });
+
+                if (teamCode is not null && teamIdByCode.TryGetValue(teamCode, out var teamId))
+                {
+                    db.TeamMembers.Add(new TeamMember
+                    {
+                        TeamId = teamId,
+                        UserId = user.Id,
+                        RoleInTeam = TeamRoleFor(roleName),
+                        CapacityWeight = 1.0m,
+                        CreatedAtUtc = now
+                    });
+                }
+
+                restored.Add(email);
+            }
+        }
+
+        if (restored.Count == 0)
+        {
+            logger.LogInformation("Every demo account is present; nothing to restore.");
+            return;
+        }
+
+        await db.SaveChangesAsync();
+
+        logger.LogWarning(
+            "Restored {Count} missing demo account(s) with the configured demo password: {Accounts}",
+            restored.Count, string.Join(", ", restored));
+    }
+
     private static async Task SeedTenantAsync(
         AppDbContext db,
         Organization organization,
@@ -255,28 +444,15 @@ public static class DevelopmentSeeder
         // ---- users ----------------------------------------------------------
         var roleByName = roles.ToDictionary(r => r.Name, StringComparer.Ordinal);
 
-        var seedUsers = isPrimary
-            ? new (string Local, string First, string Last, string Role, Guid? Team)[]
-            {
-                ("requester",  "Rabia",  "Khan",    RoleNames.Requester,           null),
-                ("requester2", "Omar",   "Siddiqui",RoleNames.Requester,           null),
-                ("agent",      "Ayesha", "Malik",   RoleNames.SupportAgent,        itTeam.Id),
-                ("agent2",     "Bilal",  "Ahmed",   RoleNames.SupportAgent,        itTeam.Id),
-                ("erpagent",   "Sana",   "Iqbal",   RoleNames.SupportAgent,        erpTeam.Id),
-                ("lead",       "Imran",  "Sheikh",  RoleNames.TeamLead,            itTeam.Id),
-                ("specialist", "Zainab", "Raza",    RoleNames.TechnicalSpecialist, erpTeam.Id),
-                ("manager",    "Faisal", "Qureshi", RoleNames.Manager,             null),
-                ("admin",      "Nadia",  "Hussain", RoleNames.Administrator,       null),
-                ("superadmin", "Kamran", "Ali",     RoleNames.SuperAdmin,          null)
-            }
-            :
-            [
-                ("requester", "Emma",   "Clarke", RoleNames.Requester,     null),
-                ("agent",     "Daniel", "Reid",   RoleNames.SupportAgent,  itTeam.Id),
-                ("admin",     "Sophie", "Turner", RoleNames.Administrator, null)
-            ];
+        var seedUsers = DemoUsers(isPrimary);
 
-        foreach (var (local, first, last, roleName, teamId) in seedUsers)
+        var teamIdByCode = new Dictionary<string, Guid>(StringComparer.Ordinal)
+        {
+            [itTeam.Code] = itTeam.Id,
+            [erpTeam.Code] = erpTeam.Id,
+        };
+
+        foreach (var (local, first, last, roleName, teamCode) in seedUsers)
         {
             var email = $"{local}@{domain}";
 
@@ -306,15 +482,13 @@ public static class DevelopmentSeeder
                 GrantedAtUtc = now
             });
 
-            if (teamId is { } team)
+            if (teamCode is not null && teamIdByCode.TryGetValue(teamCode, out var team))
             {
                 db.TeamMembers.Add(new TeamMember
                 {
                     TeamId = team,
                     UserId = user.Id,
-                    RoleInTeam = roleName == RoleNames.TeamLead ? TeamRole.Lead
-                        : roleName == RoleNames.TechnicalSpecialist ? TeamRole.Specialist
-                        : TeamRole.Member,
+                    RoleInTeam = TeamRoleFor(roleName),
                     CapacityWeight = 1.0m,
                     CreatedAtUtc = now
                 });

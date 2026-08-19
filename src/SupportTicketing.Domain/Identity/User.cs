@@ -35,6 +35,26 @@ public class User : TenantEntity, IHasRowVersion
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// The account has been deleted and its identifying details scrubbed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The row survives because tickets, comments and work logs point at it, and the
+    /// history those represent is the thing a support system exists to keep. What is
+    /// removed is the person: the name becomes "Deleted user", the email becomes an
+    /// unroutable placeholder, and the password hash is replaced with a random value
+    /// so the credential cannot come back.
+    /// </para>
+    /// <para>
+    /// Distinct from <see cref="IsActive"/>, which is a deactivation somebody can
+    /// reverse. This is not reversible — there is nothing left to restore.
+    /// </para>
+    /// </remarks>
+    public bool IsAnonymised { get; set; }
+
+    public DateTime? AnonymisedAtUtc { get; set; }
+
     /// <summary>Forces the change-password flow before any other API access is granted.</summary>
     public bool MustChangePassword { get; set; }
 

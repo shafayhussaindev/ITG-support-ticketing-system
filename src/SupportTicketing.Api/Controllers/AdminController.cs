@@ -100,20 +100,18 @@ public sealed class AdminUsersController(IDispatcher dispatcher) : ControllerBas
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.Administration.ManageOrganizations)]
     [SwaggerOperation(Summary = "Delete a user", Description =
-        "Super Admin only, and refused for any account that has raised or been "
-        + "assigned a ticket, written a comment, authored an article or leads a team — "
-        + "removing it would leave that work without an owner. Deactivate those "
-        + "instead. This is for accounts that should not exist: a mistyped address, a "
-        + "duplicate, somebody provisioned for a role they never took up. Audit rows "
-        + "survive, because they hold the name and email as a snapshot rather than a "
-        + "foreign key.")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+        "Super Admin only. An account that owns nothing is removed outright. One that "
+        + "raised or was assigned tickets, wrote comments or authored articles is "
+        + "anonymised instead: the name becomes \"Deleted user\", the email an "
+        + "unroutable placeholder and the password a random value, while the row stays "
+        + "so those tickets remain attributable. Either way the account disappears from "
+        + "every list of people and can never sign in again. Audit rows are untouched — "
+        + "they hold the name and email as a snapshot rather than a foreign key.")]
+    [ProducesResponseType<DeleteUserResult>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
-    {
-        await dispatcher.SendAsync(new DeleteUserCommand(id), cancellationToken);
-        return NoContent();
-    }
+    public async Task<ActionResult<DeleteUserResult>> Delete(
+        Guid id, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(new DeleteUserCommand(id), cancellationToken));
 
     /// <summary>Signs the account out of every device.</summary>
     [HttpPost("{id:guid}/revoke-sessions")]

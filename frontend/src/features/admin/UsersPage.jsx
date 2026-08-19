@@ -307,10 +307,14 @@ export function UsersPage() {
 
   const remove = useMutation({
     mutationFn: (id) => adminService.users.remove(id),
-    onSuccess: () => {
+    onSuccess: (result) => {
       setSelectedId(null);
       invalidate();
-      toast.success('Account deleted');
+
+      // The message says what happened to the work, not just that something did.
+      // "Deleted" alone would leave an administrator guessing whether the tickets
+      // went with it.
+      toast.success('Account deleted', result.message);
     },
     onError: (failure) =>
       toast.error('Could not delete that account', failure.detail),
@@ -561,9 +565,11 @@ export function UsersPage() {
 
                     {canDelete ? (
                       <p className={s.hint} style={{ marginTop: 'var(--s-2)' }}>
-                        Deleting is refused for any account that has raised or been
-                        assigned a ticket, written a comment or leads a team — that work
-                        would be left without an owner. Deactivate those instead.
+                        Deleting removes the person permanently and cannot be undone.
+                        Any tickets, comments or articles they left behind stay in the
+                        system and show them as <strong>Deleted user</strong>, because
+                        that history has to remain attributable. An account that owns
+                        nothing is removed outright.
                       </p>
                     ) : null}
                   </>

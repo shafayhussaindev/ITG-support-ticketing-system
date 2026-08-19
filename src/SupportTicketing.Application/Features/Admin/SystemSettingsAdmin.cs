@@ -261,7 +261,10 @@ public sealed class GetAdminReferenceDataQueryHandler(IAppDbContext db, ICurrent
             SlaPolicies = await LookupAsync(db.SlaPolicies.Select(p => new LookupItem(p.Id, p.Name, p.IsActive))),
             BusinessCalendars = await LookupAsync(
                 db.BusinessCalendars.Select(c => new LookupItem(c.Id, c.Name, c.IsActive))),
+            // Deleted accounts keep their row so tickets stay attributable, but they
+            // are not people any more and must not appear in a picker.
             Users = await LookupAsync(db.Users
+                .Where(u => !u.IsAnonymised)
                 .Select(u => new LookupItem(u.Id, u.FirstName + " " + u.LastName, u.IsActive))),
         };
 
