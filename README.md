@@ -49,12 +49,9 @@ locally and from environment variables everywhere else.
 dotnet user-secrets set "Jwt:SigningKey" "<at least 32 random characters>" --project src/SupportTicketing.Api
 ```
 
-```bash
-dotnet user-secrets set "Seed:DemoPassword" "<password for the demo accounts>" --project src/SupportTicketing.Api
-```
-
-If `Seed:DemoPassword` is omitted the seeder generates a random password and prints it
-to the console once. It never falls back to a guessable default.
+The test accounts' shared password lives in `appsettings.Development.json` under
+`Seed:RoleAccountPassword`. It is read by the seeder and by the script that generates
+the credentials sheet, so there is one copy and the two cannot drift apart.
 
 AI assistance is optional. Without a key the system runs identically — every AI call
 reports itself unavailable and the deterministic answer stands. To enable it:
@@ -78,24 +75,29 @@ in `appsettings.Development.json`. Override it with the
 dotnet ef database update --project src/SupportTicketing.Infrastructure --startup-project src/SupportTicketing.Api
 ```
 
-### 3. Run
+### 3. Run the API
 
 ```bash
 dotnet run --project src/SupportTicketing.Api
 ```
 
-Swagger is at `/swagger`. The demo seeder runs on startup in Development and logs what
-it created.
+It listens on `http://localhost:5180`, with Swagger at `/swagger`. Leave it running;
+`Ctrl+C` stops it.
 
-### 4. Sign in
+On first start against an empty database the bootstrapper creates the organization and
+one Super Admin, and prints a one-time password to the console. **Copy it** — it is not
+stored anywhere and cannot be recovered:
 
-```bash
-curl -X POST http://localhost:5180/api/v1/auth/login -H "Content-Type: application/json" -d "{\"email\":\"agent@itg.test\",\"password\":\"<Seed:DemoPassword>\"}"
+```
+Bootstrap complete. Organization 'ITG Group' created with 7 system roles.
+  Sign in as: admin@itg.local
+  One-time password: ...
 ```
 
----
+That account must change its password at first sign-in and can reach nothing until it
+does.
 
-### 5. Run the frontend
+### 4. Run the frontend
 
 In a second terminal:
 
@@ -107,8 +109,20 @@ npm install --prefix frontend
 npm run dev --prefix frontend
 ```
 
-Open `http://localhost:5173` and sign in with any demo account below. The API's CORS
-allowlist already includes this origin in Development.
+Open `http://localhost:5173`. The API's CORS allowlist already includes this origin in
+Development.
+
+### 5. Sign in
+
+Use the Super Admin above, or any of the test accounts below if
+`Seed:EnableRoleAccounts` is on. To check the API directly without the browser:
+
+```bash
+curl -X POST http://localhost:5180/api/v1/auth/login -H "Content-Type: application/json" -d "{\"email\":\"agent@itg.test\",\"password\":\"<Seed:RoleAccountPassword>\"}"
+```
+
+Sign-ins are rate limited to ten a minute from one address. Cycling through every
+account quickly starts returning 401, which looks exactly like a wrong password.
 
 The frontend reads `VITE_API_BASE_URL` (see `frontend/.env.example`), defaulting to
 `http://localhost:5180/api/v1`. Only `VITE_`-prefixed variables reach the browser
@@ -227,36 +241,83 @@ unreachable server, `aria-invalid`).
 
 ---
 
-## Demo users
+## Test accounts
 
-Created only when **both** `ASPNETCORE_ENVIRONMENT=Development` and
-`Seed:EnableDemoAccounts=true`. The seeder also aborts if the database already contains
-an organization, so it can never overwrite real data.
+Two seeders create accounts, and they answer different questions.
 
-All accounts share the `Seed:DemoPassword` value. The `.test` TLD is reserved by
+**`RoleAccountSeeder`** — one account per role, and nothing else. Use this on a database
+you intend to keep. It reads the role table, so a role invented later gets an account
+too, and it adds only what is missing, leaving existing passwords alone. Enabled with:
+
+```jsonc
+"Seed": {
+  "EnableRoleAccounts": true,
+  "RoleAccountPassword": "<the shared password>"
+}
+```
+
+| Email | Role | Permissions |
+|---|---|---|
+| `requester@itg.test` | Requester | 10 |
+| `agent@itg.test` | Support Agent | 23 |
+| `specialist@itg.test` | Technical Specialist | 25 |
+| `lead@itg.test` | Team Lead | 35 |
+| `manager@itg.test` | Manager | 42 |
+| `administrator@itg.test` | Administrator | 17 |
+| `superadmin@itg.test` | Super Admin | 55 |
+
+These sign in immediately rather than being issued a temporary password, because a
+credentials sheet whose passwords must be changed on first use is wrong the moment
+anybody uses it. That is only defensible because it cannot happen anywhere real: the
+seeder refuses to run outside Development, and the application refuses to *start* if
+the flag is set in another environment.
+
+Team Lead, Technical Specialist and Support Agent have a **Team** data scope, so their
+queues are empty until an administrator puts them on a team under **Administration →
+Teams**. An empty queue for those three is configuration, not a defect.
+
+**`DevelopmentSeeder`** — an entire fictional company: two tenants, offices,
+departments, teams, a catalogue, tickets and knowledge articles. Use it to explore the
+system, not on a database you care about. Enabled with `Seed:EnableDemoAccounts` and
+`Seed:DemoPassword`, and it refuses to run if an organization already exists, so it can
+never overwrite real data. It creates ten accounts across ITG Group plus
+`requester@fab.test`, `agent@fab.test` and `admin@fab.test` in a second tenant for
+isolation testing.
+
+Both are gated on `ASPNETCORE_ENVIRONMENT=Development`. The `.test` TLD is reserved by
 RFC 6761, so no message can reach a real mailbox.
 
-### ITG Group (primary tenant)
+Regenerate the QA sheet after any reset:
 
-| Email | Role | Permissions | Team |
-|---|---|---|---|
-| `requester@itg.test` | Requester | 10 | — |
-| `requester2@itg.test` | Requester | 10 | — |
-| `agent@itg.test` | Support Agent | 23 | IT Support |
-| `agent2@itg.test` | Support Agent | 23 | IT Support |
-| `erpagent@itg.test` | Support Agent | 23 | ERP Support |
-| `lead@itg.test` | Team Lead | 35 | IT Support |
-| `specialist@itg.test` | Technical Specialist | 25 | ERP Support |
-| `manager@itg.test` | Manager | 42 | — |
-| `admin@itg.test` | Administrator | 17 | — |
-| `superadmin@itg.test` | Super Admin | 55 | — |
+```bash
+python tools/generate-qa-credentials.py
+```
 
-### Fabrikam Trading (second tenant, for isolation testing)
-
-`requester@fab.test`, `agent@fab.test`, `admin@fab.test`
-
-A full QA reference with expected behaviours is in
+It reads the password out of `appsettings.Development.json`, so the sheet and the
+seeder cannot disagree. The result is
 [docs/QA-Test-Credentials.pdf](docs/QA-Test-Credentials.pdf).
+
+---
+
+## Starting over
+
+To wipe everything and return to a single Super Admin on an empty system:
+
+```bash
+dotnet ef database drop --force --project src/SupportTicketing.Infrastructure --startup-project src/SupportTicketing.Api
+```
+
+```bash
+dotnet ef database update --project src/SupportTicketing.Infrastructure --startup-project src/SupportTicketing.Api
+```
+
+Then start the API and copy the new one-time password from the console. Rebuilding from
+the migrations rather than deleting rows proves the schema still comes up from nothing,
+which is what a client's server actually does.
+
+Attachments live outside the database and survive this. Delete
+`src/SupportTicketing.Api/app-data/attachments/` as well, or the files stay on disk
+with nothing referencing them.
 
 ---
 
