@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<ISlaEngine, SlaEngine>();
         services.AddScoped<IPriorityMatrixResolver, PriorityMatrixResolver>();
         services.AddScoped<ISeverityPolicy, SeverityPolicy>();
+        services.AddScoped<ISlaAudience, SlaAudience>();
         services.AddScoped<IEscalationEngine, EscalationEngine>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationChannel, InAppNotificationChannel>();

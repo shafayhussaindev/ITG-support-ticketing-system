@@ -7,6 +7,7 @@ using SupportTicketing.Application.Abstractions;
 using SupportTicketing.Domain.Enums;
 using SupportTicketing.Domain.Identity;
 using SupportTicketing.Domain.Organizations;
+using SupportTicketing.Domain.Escalations;
 
 namespace SupportTicketing.Infrastructure.Persistence.Seeding;
 
@@ -76,6 +77,7 @@ public static class ProductionBootstrapper
             // added by an earlier release whose grant did not land would otherwise stay
             // ungranted for ever, because that release will never run again.
             await SyncSystemRolePermissionsAsync(db, logger);
+            await EnsureEscalationPolicyAsync(db, logger);
 
             return new Result(permissionsAdded, false, 0, null, null);
         }
@@ -205,6 +207,91 @@ public static class ProductionBootstrapper
     /// deliberately is never restored, and a role they created themselves is never touched.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Gives each organization a default escalation ladder if it has none.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Without a policy the escalation engine returns immediately, so nothing is ever
+    /// escalated and nothing says why. A freshly bootstrapped database had exactly that:
+    /// SLAs breaching, an engine running every minute, and an empty EscalationHistory —
+    /// working precisely as written and useless.
+    /// </para>
+    /// <para>
+    /// There is no administration screen for escalation policies yet, so a default that
+    /// arrives with the installation is the difference between the ladder working and it
+    /// being unreachable. Created once per organization and never touched again, so an
+    /// administrator who edits or deletes it keeps their decision.
+    /// </para>
+    /// <para>
+    /// The thresholds warn before the deadline, chase at it, and keep chasing past it. A
+    /// ladder that falls silent at a hundred percent abandons the ticket at the exact
+    /// moment it most needs somebody.
+    /// </para>
+    /// </remarks>
+    private static async Task EnsureEscalationPolicyAsync(AppDbContext db, ILogger logger)
+    {
+        var organizations = await db.Organizations.IgnoreQueryFilters()
+            .Select(o => o.Id)
+            .ToListAsync();
+
+        var created = 0;
+
+        foreach (var organizationId in organizations)
+        {
+            var exists = await db.EscalationPolicies.IgnoreQueryFilters()
+                .AnyAsync(p => p.OrganizationId == organizationId);
+
+            if (exists)
+            {
+                continue;
+            }
+
+            var policy = new EscalationPolicy
+            {
+                OrganizationId = organizationId,
+                Name = "Default escalation ladder",
+                Description = "Warns the assignee, then supervision, as the SLA budget runs out.",
+                IsDefault = true,
+                IsActive = true,
+            };
+
+            db.EscalationPolicies.Add(policy);
+
+            // No team is named on any step. A default policy cannot know the client's
+            // teams, and TeamLead resolves from the ticket's own team at the moment it
+            // fires — which is the correct answer and needs no configuration.
+            var steps = new (int Level, int Threshold, EscalationRecipient Recipient, bool ChangeStatus)[]
+            {
+                (1, 70, EscalationRecipient.AssignedAgent, false),
+                (2, 90, EscalationRecipient.TeamLead, false),
+                (3, 100, EscalationRecipient.TeamLead, true),
+                (4, 120, EscalationRecipient.DepartmentManager, false),
+            };
+
+            foreach (var (level, threshold, recipient, changeStatus) in steps)
+            {
+                db.EscalationSteps.Add(new EscalationStep
+                {
+                    OrganizationId = organizationId,
+                    PolicyId = policy.Id,
+                    Level = level,
+                    ThresholdPercent = threshold,
+                    RecipientType = recipient,
+                    ChangeTicketStatus = changeStatus,
+                });
+            }
+
+            created++;
+        }
+
+        if (created > 0)
+        {
+            await db.SaveChangesAsync();
+            logger.LogInformation("Created a default escalation ladder for {Count} organization(s).", created);
+        }
+    }
+
     private static async Task SyncSystemRolePermissionsAsync(AppDbContext db, ILogger logger)
     {
         var permissionsByKey = await db.Permissions

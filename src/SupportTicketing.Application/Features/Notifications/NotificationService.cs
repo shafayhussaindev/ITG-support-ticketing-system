@@ -47,6 +47,7 @@ public sealed class NotificationService(IAppDbContext db, IClock clock) : INotif
         var notification = new Notification
         {
             OrganizationId = request.OrganizationId,
+            ShowAsPopup = request.ShowAsPopup,
             RecipientUserId = request.RecipientUserId,
             EventType = request.EventType,
             Title = request.Title,

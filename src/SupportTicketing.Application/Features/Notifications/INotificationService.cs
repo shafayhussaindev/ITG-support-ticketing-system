@@ -20,6 +20,9 @@ public sealed record NotificationRequest
     public required string DeduplicationKey { get; init; }
 
     public NotificationSeverity Severity { get; init; } = NotificationSeverity.Info;
+
+    /// <summary>Interrupt this recipient rather than leaving it in the bell.</summary>
+    public bool ShowAsPopup { get; init; }
     public string? Link { get; init; }
     public Guid? TicketId { get; init; }
     public string? TicketNumber { get; init; }

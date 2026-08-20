@@ -43,6 +43,7 @@ public sealed class GetMyNotificationsQueryHandler(IAppDbContext db, ICurrentUse
                 Link = n.Link,
                 TicketId = n.TicketId,
                 TicketNumber = n.TicketNumber,
+                ShowAsPopup = n.ShowAsPopup,
                 IsRead = n.ReadAtUtc != null,
                 ReadAtUtc = n.ReadAtUtc,
                 CreatedAtUtc = n.CreatedAtUtc,

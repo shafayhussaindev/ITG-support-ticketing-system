@@ -81,7 +81,7 @@ public sealed class SlaMonitorService(
         var db = scope.ServiceProvider.GetRequiredService<IAppDbContext>();
         var clock = scope.ServiceProvider.GetRequiredService<IClock>();
         var escalations = scope.ServiceProvider.GetRequiredService<IEscalationEngine>();
-        var notifications = scope.ServiceProvider.GetRequiredService<INotificationService>();
+        var audience = scope.ServiceProvider.GetRequiredService<ISlaAudience>();
         var slaEvents = scope.ServiceProvider.GetRequiredService<ISlaEventRecorder>();
 
         var now = clock.UtcNow;
@@ -135,8 +135,8 @@ public sealed class SlaMonitorService(
             // run cleanly while doing none of its work.
             using var tenantScope = db.BeginTenantScope(ticket.OrganizationId);
 
-            actions += await EvaluateResponseAsync(instance, ticket, now, notifications, slaEvents, cancellationToken);
-            actions += await EvaluateResolutionAsync(instance, ticket, now, notifications, slaEvents, cancellationToken);
+            actions += await EvaluateResponseAsync(instance, ticket, now, audience, slaEvents, cancellationToken);
+            actions += await EvaluateResolutionAsync(instance, ticket, now, audience, slaEvents, cancellationToken);
             actions += await escalations.EvaluateAsync(ticket, instance, cancellationToken);
         }
 
@@ -154,7 +154,7 @@ public sealed class SlaMonitorService(
         TicketSlaInstance instance,
         Domain.Tickets.Ticket ticket,
         DateTime now,
-        INotificationService notifications,
+        ISlaAudience audience,
         ISlaEventRecorder slaEvents,
         CancellationToken cancellationToken)
     {
@@ -173,7 +173,7 @@ public sealed class SlaMonitorService(
                 $"Response SLA at {consumed:F0}% of budget, due {instance.ResponseDueAtUtc:u}.");
 
             actions += await NotifyOwnerAsync(
-                ticket, notifications,
+                ticket, audience,
                 $"Response due soon: {ticket.TicketNumber}",
                 $"{ticket.Subject} needs a first reply by {instance.ResponseDueAtUtc:u}.",
                 NotificationSeverity.Warning,
@@ -191,7 +191,7 @@ public sealed class SlaMonitorService(
                 $"No first response by {instance.ResponseDueAtUtc:u}.");
 
             actions += await NotifyOwnerAsync(
-                ticket, notifications,
+                ticket, audience,
                 $"Response overdue: {ticket.TicketNumber}",
                 $"{ticket.Subject} has had no reply and passed its response target.",
                 NotificationSeverity.Critical,
@@ -209,7 +209,7 @@ public sealed class SlaMonitorService(
         TicketSlaInstance instance,
         Domain.Tickets.Ticket ticket,
         DateTime now,
-        INotificationService notifications,
+        ISlaAudience audience,
         ISlaEventRecorder slaEvents,
         CancellationToken cancellationToken)
     {
@@ -231,7 +231,7 @@ public sealed class SlaMonitorService(
                 $"Resolution SLA at {consumed:F0}% of budget, due {instance.ResolutionDueAtUtc:u}.");
 
             actions += await NotifyOwnerAsync(
-                ticket, notifications,
+                ticket, audience,
                 $"Resolution due soon: {ticket.TicketNumber}",
                 $"{ticket.Subject} is at {consumed:F0}% of its resolution budget.",
                 NotificationSeverity.Warning,
@@ -253,7 +253,7 @@ public sealed class SlaMonitorService(
                 $"Not resolved by {instance.ResolutionDueAtUtc:u}.");
 
             actions += await NotifyOwnerAsync(
-                ticket, notifications,
+                ticket, audience,
                 $"SLA breached: {ticket.TicketNumber}",
                 $"{ticket.Subject} passed its resolution target of {instance.ResolutionDueAtUtc:u}.",
                 NotificationSeverity.Critical,
@@ -271,37 +271,23 @@ public sealed class SlaMonitorService(
     /// Notifies whoever currently owns the ticket. Returns zero when it is unassigned,
     /// which is why the escalation ladder exists: it reaches a team lead instead.
     /// </summary>
-    private static async Task<int> NotifyOwnerAsync(
+    /// <summary>
+    /// Tells everyone who should hear about it.
+    /// </summary>
+    /// <remarks>
+    /// This used to notify the assigned agent and return silently when there was none,
+    /// which meant an unassigned ticket breached without a word to anybody — the case
+    /// that most needs saying out loud. Supervision is now unconditional.
+    /// </remarks>
+    private static Task<int> NotifyOwnerAsync(
         Domain.Tickets.Ticket ticket,
-        INotificationService notifications,
+        ISlaAudience audience,
         string title,
         string body,
         NotificationSeverity severity,
         string deduplicationKey,
         NotificationEventType eventType,
-        CancellationToken cancellationToken)
-    {
-        if (ticket.AssignedAgentId is not { } agentId)
-        {
-            return 0;
-        }
-
-        var raised = await notifications.RaiseAsync(
-            new NotificationRequest
-            {
-                OrganizationId = ticket.OrganizationId,
-                RecipientUserId = agentId,
-                EventType = eventType,
-                Title = title,
-                Body = body,
-                Severity = severity,
-                Link = $"/tickets/{ticket.Id}",
-                TicketId = ticket.Id,
-                TicketNumber = ticket.TicketNumber,
-                DeduplicationKey = deduplicationKey,
-            },
-            cancellationToken);
-
-        return raised ? 1 : 0;
-    }
+        CancellationToken cancellationToken) =>
+        audience.NotifyAsync(
+            ticket, eventType, severity, title, body, deduplicationKey, cancellationToken);
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { notificationKeys, notificationService } from '@/services/slaService';
+import { useToast } from '@/contexts/ToastContext';
 import { formatRelative } from '@/utils/datetime';
 import s from './NotificationBell.module.css';
 
@@ -18,13 +19,45 @@ export function NotificationBell() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const toast = useToast();
+
+  // Which popups have already interrupted this session. A ref rather than state
+  // because changing it must not re-render — and it deliberately does not persist:
+  // a reload is a new session, and an unread breach is worth saying again.
+  const shown = useRef(new Set());
+
   const { data } = useQuery({
     queryKey: notificationKeys.mine,
     queryFn: () => notificationService.list({ take: 15 }),
     // Polled rather than pushed for now. SignalR delivers the nudge once the client
     // subscribes; this keeps the count honest even if the socket drops.
-    refetchInterval: 60_000,
+    //
+    // Thirty seconds rather than sixty: this is now how a breach reaches the person
+    // holding the ticket, and a minute of silence on a missed deadline is a long time.
+    refetchInterval: 30_000,
   });
+
+  // Interrupts the person the ticket belongs to. Supervisors receive the same events
+  // with ShowAsPopup false and find them in the bell, because their job is the pattern
+  // rather than the individual ticket — interrupting them for each one would teach
+  // them to dismiss all of them.
+  useEffect(() => {
+    const items = data?.items ?? [];
+
+    for (const item of items) {
+      if (!item.showAsPopup || item.isRead || shown.current.has(item.id)) {
+        continue;
+      }
+
+      shown.current.add(item.id);
+
+      const raise = item.severity === 'Critical' ? toast.error
+        : item.severity === 'Warning' ? toast.warning
+          : toast.info;
+
+      raise(item.title, item.body);
+    }
+  }, [data, toast]);
 
   const markRead = useMutation({
     mutationFn: (ids) => (ids ? notificationService.markRead(ids) : notificationService.markAllRead()),

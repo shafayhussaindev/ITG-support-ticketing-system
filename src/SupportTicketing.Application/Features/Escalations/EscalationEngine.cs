@@ -30,7 +30,7 @@ public interface IEscalationEngine
 /// </remarks>
 public sealed class EscalationEngine(
     IAppDbContext db,
-    INotificationService notifications,
+    ISlaAudience audience,
     ISlaEventRecorder slaEvents,
     IClock clock)
     : IEscalationEngine
@@ -105,25 +105,21 @@ public sealed class EscalationEngine(
                 instance, SlaEventType.Escalated, step.Level,
                 $"Escalated to level {step.Level} at {consumed:F0}% of the resolution budget.");
 
-            if (recipientId is { } notifyId)
-            {
-                await notifications.RaiseAsync(
-                    new NotificationRequest
-                    {
-                        OrganizationId = ticket.OrganizationId,
-                        RecipientUserId = notifyId,
-                        EventType = NotificationEventType.TicketEscalated,
-                        Title = $"Escalation level {step.Level}: {ticket.TicketNumber}",
-                        Body = step.MessageTemplate
-                               ?? $"{ticket.Subject} has consumed {consumed:F0}% of its resolution budget.",
-                        Severity = consumed >= 100 ? NotificationSeverity.Critical : NotificationSeverity.Warning,
-                        Link = $"/tickets/{ticket.Id}",
-                        TicketId = ticket.Id,
-                        TicketNumber = ticket.TicketNumber,
-                        DeduplicationKey = $"escalation:{ticket.Id}:{step.Level}",
-                    },
-                    cancellationToken);
-            }
+            // Through the shared audience rather than to the resolved recipient alone.
+            // Every recipient type returns null for a ticket with no assignee, team or
+            // department — so an unassigned ticket used to climb the whole ladder,
+            // record the history, and tell nobody. Those are the tickets the ladder
+            // exists for.
+            await audience.NotifyAsync(
+                ticket,
+                NotificationEventType.TicketEscalated,
+                consumed >= 100 ? NotificationSeverity.Critical : NotificationSeverity.Warning,
+                $"Escalation level {step.Level}: {ticket.TicketNumber}",
+                step.MessageTemplate
+                    ?? $"{ticket.Subject} has consumed {consumed:F0}% of its resolution budget.",
+                $"escalation:{ticket.Id}:{step.Level}",
+                cancellationToken,
+                alsoNotify: recipientId);
 
             instance.HighestEscalationLevel = step.Level;
             raised++;

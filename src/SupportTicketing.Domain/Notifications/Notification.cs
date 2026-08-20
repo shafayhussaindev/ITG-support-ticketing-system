@@ -31,6 +31,21 @@ public class Notification : TenantEntity
     /// <summary>Drives the visual treatment in the notification list.</summary>
     public NotificationSeverity Severity { get; set; } = NotificationSeverity.Info;
 
+    /// <summary>Whether this should interrupt the recipient rather than wait in the bell.</summary>
+    /// <remarks>
+    /// <para>
+    /// The same event reaches different people for different reasons. The person holding
+    /// the ticket needs to know now, because they are the one who can still act on it;
+    /// a supervisor needs it on a list they review, because their job is the pattern
+    /// rather than the individual ticket.
+    /// </para>
+    /// <para>
+    /// Set per recipient, not per event, which is why it lives here and not on the
+    /// notification's type. Interrupting everybody would train all of them to dismiss it.
+    /// </para>
+    /// </remarks>
+    public bool ShowAsPopup { get; set; }
+
     public DateTime? ReadAtUtc { get; set; }
     public bool IsRead => ReadAtUtc.HasValue;
 
