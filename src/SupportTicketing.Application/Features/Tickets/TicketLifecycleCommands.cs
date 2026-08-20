@@ -366,7 +366,8 @@ public sealed class ChangeTicketPriorityCommandValidator : AbstractValidator<Cha
 }
 
 public sealed class ChangeTicketPriorityCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine,
+    IPriorityMatrixResolver priorityMatrix, IAuditWriter audit, IClock clock)
     : ICommandHandler<ChangeTicketPriorityCommand, TicketDetailResponse>
 {
     public async Task<TicketDetailResponse> HandleAsync(
@@ -380,9 +381,7 @@ public sealed class ChangeTicketPriorityCommandHandler(
         var impact = Enum.Parse<ImpactLevel>(command.Request.Impact, true);
         var urgency = Enum.Parse<UrgencyLevel>(command.Request.Urgency, true);
 
-        var matrix = await db.PriorityMatrixEntries
-            .Select(e => new PriorityMatrixCell(e.Impact, e.Urgency, e.Priority))
-            .ToListAsync(cancellationToken);
+        var matrix = await priorityMatrix.ForTicketAsync(ticket, cancellationToken);
 
         var calculated = PriorityCalculator.Calculate(impact, urgency, matrix);
 

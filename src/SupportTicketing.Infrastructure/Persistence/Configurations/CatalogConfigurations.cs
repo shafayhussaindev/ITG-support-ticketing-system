@@ -101,12 +101,22 @@ public sealed class PriorityMatrixEntryConfiguration : IEntityTypeConfiguration<
     {
         builder.ToTable("PriorityMatrixEntries");
 
-        // Exactly one priority per (impact, urgency) pair per organization, so the
-        // calculator can never find two conflicting answers.
-        builder.HasIndex(p => new { p.OrganizationId, p.Impact, p.Urgency })
+        // Exactly one priority per (impact, urgency) pair per matrix, so the calculator
+        // can never find two conflicting answers. SlaPolicyId is part of the key
+        // because a policy's override sits alongside the organization row it overrides
+        // rather than replacing it — null is the organization's own matrix.
+        builder.HasIndex(p => new { p.OrganizationId, p.SlaPolicyId, p.Impact, p.Urgency })
             .IsUnique()
             .HasFilter("[IsDeleted] = 0")
-            .HasDatabaseName("UX_PriorityMatrix_Org_Impact_Urgency");
+            .HasDatabaseName("UX_PriorityMatrix_Org_Policy_Impact_Urgency");
+
+        // Deleting a policy takes its overrides with it. Leaving them would orphan rows
+        // that no resolver can ever reach, and a later policy reusing the identifier
+        // would silently inherit somebody else's matrix.
+        builder.HasOne(p => p.SlaPolicy)
+            .WithMany()
+            .HasForeignKey(p => p.SlaPolicyId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
 

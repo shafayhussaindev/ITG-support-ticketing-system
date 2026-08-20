@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  DAYS, PRIORITIES, adminKeys, adminService, formatTarget, minutesToTime, timeToMinutes,
+  DAYS, IMPACTS, PRIORITIES, URGENCIES, adminKeys, adminService, formatTarget,
+  minutesToTime, timeToMinutes,
 } from '@/services/adminService';
 import { useToast } from '@/contexts/ToastContext';
 import { Badge, Button, Card, CardBody, CardHeader, ErrorState, LoadingState } from '@/components/ui';
@@ -171,12 +172,163 @@ function PolicyForm({ policy, reference, onSave, onCancel, saving, error }) {
   );
 }
 
+const PRIORITY_CLASS = {
+  Critical: s.pCritical,
+  High: s.pHigh,
+  Medium: s.pMedium,
+  Low: s.pLow,
+};
+
+/**
+ * A policy's own impact-by-urgency grid.
+ *
+ * <p>The whole grid is always shown, but only cells this policy has actually decided
+ * are marked as overrides. That distinction is the point of the screen: sixteen
+ * priorities with no indication of provenance cannot tell an administrator which ones
+ * this policy chose and which it is inheriting, and inheriting is the answer for most
+ * of them most of the time.</p>
+ */
+function PolicyMatrix({ policy, onClose }) {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState(null);
+
+  const { data, isPending, isError, error, refetch } = useQuery({
+    queryKey: adminKeys.policyPriorityMatrix(policy.id),
+    queryFn: () => adminService.sla.policyPriorityMatrix(policy.id),
+  });
+
+  const invalidate = () => {
+    setDraft(null);
+    queryClient.invalidateQueries({ queryKey: adminKeys.policyPriorityMatrix(policy.id) });
+  };
+
+  const save = useMutation({
+    mutationFn: (cells) => adminService.sla.savePolicyPriorityMatrix(policy.id, {
+      cells: cells.map(({ impact, urgency, priority }) => ({ impact, urgency, priority })),
+      reason: `Edited from the SLA policy screen for ${policy.name}`,
+    }),
+    onSuccess: (result) => {
+      invalidate();
+      toast.success(
+        result.hasOverrides
+          ? `${result.overriddenCells} ${result.overriddenCells === 1 ? 'cell overrides' : 'cells override'} the organization matrix`
+          : 'This policy now follows the organization matrix',
+        'Applies to tickets raised from now on',
+      );
+    },
+    onError: (failure) => toast.error('Could not save the matrix', failure.detail),
+  });
+
+  const clear = useMutation({
+    mutationFn: () => adminService.sla.clearPolicyPriorityMatrix(policy.id),
+    onSuccess: () => {
+      invalidate();
+      toast.success('Overrides cleared', 'This policy follows the organization matrix again');
+    },
+    onError: (failure) => toast.error('Could not clear the overrides', failure.detail),
+  });
+
+  if (isPending) return <LoadingState label="Loading the matrix" />;
+  if (isError) return <ErrorState error={error} onRetry={refetch} title="Could not load the matrix" />;
+
+  const cells = draft ?? data.cells;
+  const lookup = new Map(cells.map((c) => [`${c.impact}|${c.urgency}`, c]));
+
+  function set(impact, urgency, priority) {
+    setDraft(cells.map((c) => (c.impact === impact && c.urgency === urgency
+      ? { ...c, priority }
+      : c)));
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title={`Priority matrix — ${policy.name}`}
+        subtitle={data.hasOverrides
+          ? `${data.overriddenCells} of 16 cells decided by this policy, the rest inherited`
+          : 'Following the organization matrix entirely'}
+        actions={(
+          <div className={s.headerActions}>
+            {draft ? (
+              <>
+                <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>Revert</Button>
+                <Button size="sm" loading={save.isPending} onClick={() => save.mutate(cells)}>Save</Button>
+              </>
+            ) : (
+              <>
+                {data.hasOverrides ? (
+                  <Button size="sm" variant="secondary" loading={clear.isPending}
+                          onClick={() => clear.mutate()}>
+                    Follow the organization matrix
+                  </Button>
+                ) : null}
+                <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
+              </>
+            )}
+          </div>
+        )}
+      />
+      <CardBody>
+        <div className={s.tableWrap}>
+          <table className={s.matrix}>
+            <thead>
+              <tr>
+                <th scope="col">Impact \ Urgency</th>
+                {URGENCIES.map((u) => <th key={u} scope="col">{u}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {IMPACTS.map((impact) => (
+                <tr key={impact}>
+                  <th scope="row">{impact}</th>
+                  {URGENCIES.map((urgency) => {
+                    const cell = lookup.get(`${impact}|${urgency}`) ?? {};
+                    const overridden = cell.source === 'Policy';
+
+                    return (
+                      <td key={urgency}>
+                        <select
+                          className={`${s.matrixSelect} ${PRIORITY_CLASS[cell.priority] ?? ''}`}
+                          value={cell.priority ?? 'Medium'}
+                          aria-label={`${impact} impact with ${urgency} urgency`
+                            + (overridden ? ', overridden by this policy' : ', inherited')}
+                          onChange={(e) => set(impact, urgency, e.target.value)}
+                        >
+                          {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <span className={overridden ? s.chip : s.muted}
+                              style={{ fontSize: 'var(--fs-xs)' }}>
+                          {overridden ? 'this policy' : 'inherited'}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <p className={s.hint} style={{ marginTop: 'var(--s-3)' }}>
+          A cell you set to the same value it already inherits is not stored as an
+          override — otherwise it would quietly pin the value and this policy would stop
+          following later changes to the organization matrix for no visible reason.
+          Changes apply to tickets raised from now on; existing tickets keep the priority
+          their SLA clock was started against.
+        </p>
+      </CardBody>
+    </Card>
+  );
+}
+
 function Policies({ reference }) {
   const toast = useToast();
   const queryClient = useQueryClient();
 
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [matrixId, setMatrixId] = useState(null);
 
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: adminKeys.slaPolicies(),
@@ -251,7 +403,17 @@ function Policies({ reference }) {
                   <td>{policy.activeClocks || <span className={s.muted}>—</span>}</td>
                   <td className={s.rowActions}>
                     <button type="button" className={s.linkButton}
-                            onClick={() => setEditingId(editingId === policy.id ? null : policy.id)}>
+                            onClick={() => {
+                              setMatrixId(matrixId === policy.id ? null : policy.id);
+                              setEditingId(null);
+                            }}>
+                      Priority matrix
+                    </button>
+                    <button type="button" className={s.linkButton}
+                            onClick={() => {
+                              setEditingId(editingId === policy.id ? null : policy.id);
+                              setMatrixId(null);
+                            }}>
                       Edit
                     </button>
                   </td>
@@ -261,6 +423,13 @@ function Policies({ reference }) {
           </table>
         </div>
       </Card>
+
+      {matrixId ? (
+        <PolicyMatrix
+          policy={data.find((p) => p.id === matrixId)}
+          onClose={() => setMatrixId(null)}
+        />
+      ) : null}
 
       {creating ? (
         <Card>

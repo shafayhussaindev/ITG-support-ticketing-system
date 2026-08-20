@@ -65,6 +65,9 @@ export const adminService = {
     policies: () => api.get('/admin/sla/policies'),
     createPolicy: (body) => api.post('/admin/sla/policies', body),
     updatePolicy: (id, body) => api.put(`/admin/sla/policies/${id}`, body),
+    policyPriorityMatrix: (id) => api.get(`/admin/sla/policies/${id}/priority-matrix`),
+    savePolicyPriorityMatrix: (id, body) => api.put(`/admin/sla/policies/${id}/priority-matrix`, body),
+    clearPolicyPriorityMatrix: (id) => api.delete(`/admin/sla/policies/${id}/priority-matrix`),
     calendars: () => api.get('/admin/sla/calendars'),
     createCalendar: (body) => api.post('/admin/sla/calendars', body),
     updateCalendar: (id, body) => api.put(`/admin/sla/calendars/${id}`, body),
@@ -90,6 +93,7 @@ export const adminKeys = {
   applications: () => ['admin', 'applications'],
   priorityMatrix: () => ['admin', 'priority-matrix'],
   slaPolicies: () => ['admin', 'sla-policies'],
+  policyPriorityMatrix: (id) => ['admin', 'sla-policies', id, 'priority-matrix'],
   calendars: () => ['admin', 'calendars'],
   settings: () => ['admin', 'settings'],
 };

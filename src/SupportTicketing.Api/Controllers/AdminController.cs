@@ -430,6 +430,42 @@ public sealed class AdminSlaController(IDispatcher dispatcher) : ControllerBase
         Guid id, [FromBody] SaveSlaPolicyRequest request, CancellationToken cancellationToken) =>
         Ok(await dispatcher.SendAsync(new SaveSlaPolicyCommand(id, request), cancellationToken));
 
+    /// <summary>A policy's own impact-by-urgency grid.</summary>
+    [HttpGet("policies/{id:guid}/priority-matrix")]
+    [HasPermission(Permissions.Sla.Manage)]
+    [SwaggerOperation(Summary = "Get a policy's priority matrix", Description =
+        "All sixteen combinations, each labelled with where its value came from: the "
+        + "policy's own override, the organization's matrix, or the built-in rule.")]
+    [ProducesResponseType<PolicyPriorityMatrixResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PolicyPriorityMatrixResponse>> PolicyPriorityMatrix(
+        Guid id, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetPolicyPriorityMatrixQuery(id), cancellationToken));
+
+    /// <summary>Sets the cells this policy decides for itself.</summary>
+    [HttpPut("policies/{id:guid}/priority-matrix")]
+    [HasPermission(Permissions.Sla.Manage)]
+    [SwaggerOperation(Summary = "Override a policy's priority matrix", Description =
+        "Send only the cells this policy should decide; the rest stay inherited. A cell "
+        + "matching what it would inherit is not stored, so an override always means a "
+        + "real difference. Applies to tickets raised from now on — existing tickets keep "
+        + "the priority their SLA clock was started against.")]
+    [ProducesResponseType<PolicyPriorityMatrixResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PolicyPriorityMatrixResponse>> SavePolicyPriorityMatrix(
+        Guid id, [FromBody] SavePriorityMatrixRequest request, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(
+            new SavePolicyPriorityMatrixCommand(id, request), cancellationToken));
+
+    /// <summary>Drops every override, returning the policy to the organization's matrix.</summary>
+    [HttpDelete("policies/{id:guid}/priority-matrix")]
+    [HasPermission(Permissions.Sla.Manage)]
+    [SwaggerOperation(Summary = "Clear a policy's priority matrix")]
+    [ProducesResponseType<PolicyPriorityMatrixResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<PolicyPriorityMatrixResponse>> ClearPolicyPriorityMatrix(
+        Guid id, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.SendAsync(new ClearPolicyPriorityMatrixCommand(id), cancellationToken));
+
     /// <summary>Working calendars with their hours and holidays.</summary>
     [HttpGet("calendars")]
     [HasPermission(Permissions.Administration.ManageCalendars)]

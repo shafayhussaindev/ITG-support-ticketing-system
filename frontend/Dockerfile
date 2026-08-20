@@ -9,7 +9,20 @@ WORKDIR /app
 
 # The lockfile alone first, so a source edit reuses the installed modules layer.
 COPY package.json package-lock.json ./
-RUN npm ci
+
+# npm's defaults assume a good, unmetered link. Inside Docker Desktop the NAT
+# stalls under the several hundred parallel connections npm opens by default,
+# and the install dies on whichever tarball happened to be in flight — observed
+# twice on the same package, at the same 136 seconds, while that tarball fetched
+# in three seconds on its own. Capping concurrency and retrying is the
+# difference between a build that works on a client's machine and one that
+# depends on their network being unusually kind.
+RUN npm config set maxsockets 8 \
+ && npm config set fetch-retries 5 \
+ && npm config set fetch-retry-mintimeout 20000 \
+ && npm config set fetch-retry-maxtimeout 180000 \
+ && npm config set fetch-timeout 900000 \
+ && npm ci --no-audit --no-fund
 
 COPY . .
 

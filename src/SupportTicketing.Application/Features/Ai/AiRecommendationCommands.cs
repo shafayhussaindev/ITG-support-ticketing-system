@@ -5,6 +5,7 @@ using SupportTicketing.Domain.Ai;
 using SupportTicketing.Domain.Enums;
 using SupportTicketing.Domain.Identity;
 using SupportTicketing.Domain.Tickets;
+using SupportTicketing.Application.Features.Sla;
 
 namespace SupportTicketing.Application.Features.Ai;
 
@@ -49,6 +50,7 @@ public sealed class RequestPriorityRecommendationCommandHandler(
     IAppDbContext db,
     ICurrentUser currentUser,
     IAiService ai,
+    IPriorityMatrixResolver priorityMatrix,
     IAuditWriter audit)
     : ICommandHandler<RequestPriorityRecommendationCommand, AiRecommendationResult>
 {
@@ -61,9 +63,7 @@ public sealed class RequestPriorityRecommendationCommandHandler(
             db.Tickets.AsNoTracking(), command.TicketId, currentUser, cancellationToken);
 
         // The rule engine answers first, and its answer is what the system stands on.
-        var matrix = await db.PriorityMatrixEntries
-            .Select(e => new PriorityMatrixCell(e.Impact, e.Urgency, e.Priority))
-            .ToListAsync(cancellationToken);
+        var matrix = await priorityMatrix.ForTicketAsync(ticket, cancellationToken);
 
         var deterministic = PriorityCalculator.Calculate(ticket.Impact, ticket.Urgency, matrix);
         var deterministicValue = deterministic.Priority.ToString();

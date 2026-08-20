@@ -1,5 +1,6 @@
 using SupportTicketing.Domain.Common;
 using SupportTicketing.Domain.Enums;
+using SupportTicketing.Domain.Sla;
 using SupportTicketing.Domain.Teams;
 
 namespace SupportTicketing.Domain.Catalog;
@@ -94,6 +95,25 @@ public class ApplicationModule : TenantEntity
 /// </summary>
 public class PriorityMatrixEntry : TenantEntity
 {
+    /// <summary>
+    /// The SLA policy this cell belongs to, or null for the organization's own matrix.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Null is the default and the fallback. An organization has one matrix that applies
+    /// everywhere; a policy may then override it, because what counts as Critical is not
+    /// the same question for a production line as for an internal reporting request.
+    /// </para>
+    /// <para>
+    /// Resolution is per cell, not per matrix: a policy that overrides only the cells it
+    /// cares about inherits the rest, so an administrator editing the organization
+    /// matrix does not silently leave a policy behind.
+    /// </para>
+    /// </remarks>
+    public Guid? SlaPolicyId { get; set; }
+
+    public SlaPolicy? SlaPolicy { get; set; }
+
     public ImpactLevel Impact { get; set; }
     public UrgencyLevel Urgency { get; set; }
     public PriorityLevel Priority { get; set; }

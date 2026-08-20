@@ -1,0 +1,30 @@
+# What must never reach the frontend image's build context.
+#
+# node_modules is the one that matters. The Dockerfile runs `npm ci` and then
+# `COPY . .`, so without this rule the host's node_modules is copied straight
+# over the one just installed inside the container. On a Windows host that
+# replaces Linux binaries with Windows ones — esbuild and rollup both ship a
+# platform-specific executable — and the build fails, or worse, succeeds
+# against the wrong toolchain.
+#
+# dist is excluded for a quieter reason: a stale local build would be copied in
+# and then overwritten by `npm run build`, which wastes transfer and makes the
+# image's provenance ambiguous if the build step is ever skipped.
+
+node_modules/
+dist/
+
+.git/
+.gitignore
+
+# Vite inlines any VITE_-prefixed variable into the bundle at build time, so a
+# local .env here would end up readable in the shipped JavaScript. The image
+# takes its configuration from build args instead.
+.env
+.env.*
+!.env.example
+
+.vscode/
+.idea/
+*.log
+coverage/

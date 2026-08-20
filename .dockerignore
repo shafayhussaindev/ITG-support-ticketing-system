@@ -1,0 +1,54 @@
+# What must never reach the API image's build context.
+#
+# The reason this file has to exist, rather than being a tidiness measure: the
+# Dockerfile does `COPY src/ src/`, which without these rules copies the host's
+# bin/ and obj/ folders in too. obj/ holds project.assets.json, and that file
+# records absolute paths into the host's NuGet cache — on this machine,
+# C:\Users\...\.nuget\packages. Inside a Linux container that path does not
+# exist, so NuGet's FallbackPackagePathResolver throws before a single file is
+# compiled and the build dies in `dotnet publish` with an MSB4018 stack trace
+# that says nothing about the real cause.
+#
+# It also only fails on a machine that has built locally first, which is why a
+# clean CI checkout passes and a developer's laptop does not.
+
+# ---------------------------------------------------------------- build output
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+
+# ------------------------------------------------------------------- version
+.git/
+.gitignore
+.github/
+
+# ------------------------------------------------------------- editor / local
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# --------------------------------------------------------------------- secrets
+# .env holds the compose secrets. Copying it into a layer would bake the SA
+# password and the JWT signing key into the image, where anyone who can pull it
+# can read them back out with `docker history`.
+.env
+.env.*
+!.env.docker.example
+**/secrets.json
+
+# ----------------------------------------------------------------- runtime data
+# Uploaded attachments belong in a volume, not in the image.
+**/app-data/
+**/logs/
+*.log
+
+# ------------------------------------------------------- not needed by the API
+tests/
+docs/
+tools/
+frontend/
+*.md
+docker-compose.yml

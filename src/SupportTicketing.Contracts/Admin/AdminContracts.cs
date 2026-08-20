@@ -333,6 +333,37 @@ public sealed record SavePriorityMatrixRequest
     public string? Reason { get; init; }
 }
 
+/// <summary>
+/// One cell of a policy's grid, with where its value came from.
+/// </summary>
+/// <remarks>
+/// The source is the point of this record. A grid that shows sixteen priorities and
+/// nothing else cannot tell an administrator which of them this policy actually decided
+/// and which it is merely inheriting — and that is the only question worth asking when
+/// looking at an override.
+/// </remarks>
+public sealed record PolicyPriorityMatrixCell
+{
+    public required string Impact { get; init; }
+    public required string Urgency { get; init; }
+    public required string Priority { get; init; }
+
+    /// <summary>One of <c>Policy</c>, <c>Organization</c> or <c>BuiltIn</c>.</summary>
+    public required string Source { get; init; }
+}
+
+public sealed record PolicyPriorityMatrixResponse
+{
+    public required Guid PolicyId { get; init; }
+    public required string PolicyName { get; init; }
+
+    /// <summary>False when the policy defers entirely to the organization's matrix.</summary>
+    public required bool HasOverrides { get; init; }
+
+    public required int OverriddenCells { get; init; }
+    public required IReadOnlyList<PolicyPriorityMatrixCell> Cells { get; init; }
+}
+
 // ------------------------------------------------------------------------ SLA
 
 public sealed record SlaPolicyResponse

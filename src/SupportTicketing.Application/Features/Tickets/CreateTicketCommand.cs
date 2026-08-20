@@ -51,6 +51,7 @@ public sealed class CreateTicketCommandHandler(
     ICurrentUser currentUser,
     ITicketNumberGenerator numberGenerator,
     ISlaEngine slaEngine,
+    IPriorityMatrixResolver priorityMatrix,
     IAuditWriter audit,
     IClock clock)
     : ICommandHandler<CreateTicketCommand, TicketDetailResponse>
@@ -79,9 +80,13 @@ public sealed class CreateTicketCommandHandler(
 
         // The matrix is the authority. The requester supplied impact and urgency, both
         // of which they can judge; they were never asked to pick a priority.
-        var matrix = await db.PriorityMatrixEntries
-            .Select(e => new PriorityMatrixCell(e.Impact, e.Urgency, e.Priority))
-            .ToListAsync(cancellationToken);
+        var ticketType = Enum.Parse<TicketType>(request.Type, true);
+
+        // Resolved through the SLA policy that will apply to this ticket, so a policy
+        // with its own matrix prices its own work. Selection reads category, department
+        // and type — never priority — so there is nothing circular in asking now.
+        var matrix = await priorityMatrix.ForTicketShapeAsync(
+            request.CategoryId, request.DepartmentId, ticketType, cancellationToken);
 
         var priority = PriorityCalculator.Calculate(impact, urgency, matrix);
 
@@ -113,7 +118,7 @@ public sealed class CreateTicketCommandHandler(
             SubcategoryId = request.SubcategoryId,
             ApplicationId = request.ApplicationId,
             ApplicationModuleId = request.ApplicationModuleId,
-            Type = Enum.Parse<TicketType>(request.Type, true),
+            Type = ticketType,
             Impact = impact,
             Urgency = urgency,
             Priority = priority.Priority,
