@@ -97,6 +97,37 @@ public sealed record AgentPerformanceRow
 
 // ------------------------------------------------------------- Volume trend
 
+// ------------------------------------------------------------ severity claims
+
+/// <summary>How often requesters ask for more severity than they may declare.</summary>
+public sealed record SeverityClaimReport
+{
+    public required DateTime FromUtc { get; init; }
+    public required DateTime ToUtc { get; init; }
+
+    public required int TicketsRaised { get; init; }
+
+    /// <summary>Tickets where the claim was above the cap and was reduced.</summary>
+    public required int ClaimsReduced { get; init; }
+
+    public required double ReducedPercent { get; init; }
+
+    /// <summary>Only requesters who over-claimed at least once, worst rate first.</summary>
+    public required IReadOnlyList<SeverityClaimRow> Rows { get; init; }
+}
+
+public sealed record SeverityClaimRow
+{
+    public required Guid RequesterId { get; init; }
+    public required string RequesterName { get; init; }
+    public required string RequesterEmail { get; init; }
+    public required int TicketsRaised { get; init; }
+    public required int ClaimsReduced { get; init; }
+
+    /// <summary>A rate, because ten in two hundred is not the same problem as four in four.</summary>
+    public required double ReducedPercent { get; init; }
+}
+
 public sealed record VolumeTrendReport
 {
     public required ReportPeriod Period { get; init; }

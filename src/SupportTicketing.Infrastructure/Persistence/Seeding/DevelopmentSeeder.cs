@@ -876,74 +876,27 @@ public static class DevelopmentSeeder
         NewRole(orgId, RoleNames.Administrator, DataScope.Organization, 60, now),
         NewRole(orgId, RoleNames.SuperAdmin, DataScope.All, 70, now)
     ];
-
     /// <summary>
-    /// The starting permission bundles.
+    /// The permissions each seeded role starts with.
     /// </summary>
     /// <remarks>
-    /// Administrator deliberately does not receive <c>ticket.view_all</c>: managing
-    /// users and configuration does not imply a right to read everyone's support
-    /// conversations. Granting it is an explicit, audited decision.
+    /// Delegates to <see cref="SystemRoleDefinitions"/> rather than restating the sets.
+    /// This file used to hold its own copy, and the copies drifted the first time a
+    /// permission was added: the definition was updated, the demo database was not, and
+    /// the feature appeared broken for every seeded account while looking correct in
+    /// source. One list means that cannot happen again.
     /// </remarks>
     private static IEnumerable<(Role Role, string[] Keys)> RolePermissionMap(List<Role> roles)
     {
-        Role Find(string name) => roles.First(r => r.Name == name);
+        foreach (var (name, keys) in SystemRoleDefinitions.PermissionsByRole)
+        {
+            var role = roles.FirstOrDefault(r => r.Name == name);
 
-        string[] requester =
-        [
-            Permissions.Tickets.Create, Permissions.Tickets.ViewOwn, Permissions.Tickets.PublicReply,
-            Permissions.Tickets.ConfirmResolution, Permissions.Tickets.Reopen, Permissions.Tickets.Cancel,
-            Permissions.Attachments.Upload, Permissions.Attachments.Download,
-            Permissions.Knowledge.View, Permissions.Sla.View
-        ];
-
-        string[] agent =
-        [
-            .. requester,
-            Permissions.Tickets.ViewAssigned, Permissions.Tickets.ViewTeam, Permissions.Tickets.Edit,
-            Permissions.Tickets.Accept, Permissions.Tickets.ChangeStatus, Permissions.Tickets.Resolve,
-            Permissions.Tickets.InternalNote, Permissions.Tickets.LogWork, Permissions.Tickets.LinkRecords,
-            Permissions.Tickets.RecordRootCause, Permissions.Escalations.View,
-            Permissions.Knowledge.Create, Permissions.Ai.Use
-        ];
-
-        string[] specialist = [.. agent, Permissions.Tickets.Transfer, Permissions.Knowledge.Edit];
-
-        string[] lead =
-        [
-            .. specialist,
-            Permissions.Tickets.Assign, Permissions.Tickets.Reassign, Permissions.Tickets.ChangePriority,
-            Permissions.Tickets.Close, Permissions.Escalations.Manage, Permissions.Escalations.Acknowledge,
-            Permissions.Reports.ViewTeam, Permissions.Reports.View, Permissions.Knowledge.Publish,
-            Permissions.Attachments.Delete
-        ];
-
-        string[] manager =
-        [
-            .. lead,
-            Permissions.Tickets.ViewDepartment, Permissions.Tickets.ViewOrganization,
-            Permissions.Reports.ViewOrganization, Permissions.Reports.Export,
-            Permissions.Sla.Manage, Permissions.Sla.Override, Permissions.Knowledge.Archive
-        ];
-
-        string[] administrator =
-        [
-            Permissions.Tickets.ViewOwn, Permissions.Knowledge.View, Permissions.Sla.View, Permissions.Sla.Manage,
-            Permissions.Escalations.View, Permissions.Reports.View, Permissions.Reports.Export,
-            Permissions.Administration.ManageUsers, Permissions.Administration.ManageRoles,
-            Permissions.Administration.ManageTeams, Permissions.Administration.ManageCatalog,
-            Permissions.Administration.ManageRouting, Permissions.Administration.ManageNotifications,
-            Permissions.Administration.ManageCalendars, Permissions.Administration.ConfigureSystem,
-            Permissions.Administration.ViewAudit, Permissions.Ai.Configure
-        ];
-
-        yield return (Find(RoleNames.Requester), requester);
-        yield return (Find(RoleNames.SupportAgent), agent);
-        yield return (Find(RoleNames.TechnicalSpecialist), specialist);
-        yield return (Find(RoleNames.TeamLead), lead);
-        yield return (Find(RoleNames.Manager), manager);
-        yield return (Find(RoleNames.Administrator), administrator);
-        yield return (Find(RoleNames.SuperAdmin), [.. Permissions.All]);
+            if (role is not null)
+            {
+                yield return (role, [.. keys]);
+            }
+        }
     }
 
     /// <summary>

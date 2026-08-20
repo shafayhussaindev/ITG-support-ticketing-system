@@ -73,6 +73,16 @@ public sealed record TicketDetailResponse
     public required string Type { get; init; }
     public required string Impact { get; init; }
     public required string Urgency { get; init; }
+
+    /// <summary>What the requester asked for, when the organization's cap reduced it.</summary>
+    /// <remarks>
+    /// Null on almost every ticket. A value means somebody claimed a severity above what
+    /// they may declare, and staff can see what they believed before deciding whether
+    /// they were right.
+    /// </remarks>
+    public string? ClaimedImpact { get; init; }
+
+    public string? ClaimedUrgency { get; init; }
     public required string Priority { get; init; }
     public required string SuggestedPriority { get; init; }
     public required string PriorityDecisionSource { get; init; }

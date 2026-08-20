@@ -62,7 +62,9 @@ public class SlaTests(ApiFactory factory)
         var requester = await SignInAsync("requester@itg.test");
         var agent = await SignInAsync("agent@itg.test");
 
-        var ticket = await RaiseAsync(requester, "Critical", "Critical", "SLA attaches on creation");
+        // Raised by staff rather than the requester: a requester's own claim is capped
+        // at High, and this test is about the Critical target, not about the cap.
+        var ticket = await RaiseAsync(agent, "Critical", "Critical", "SLA attaches on creation");
         var sla = await GetSlaAsync(agent, ticket.Id);
 
         sla.ShouldNotBeNull();

@@ -165,6 +165,37 @@ public sealed record CreateRoleRequest
     public IReadOnlyList<string>? PermissionKeys { get; init; }
 }
 
+/// <summary>How much open work one member of staff is holding, right now.</summary>
+public sealed record StaffWorkloadRow
+{
+    public required Guid UserId { get; init; }
+    public required string FullName { get; init; }
+    public required string Email { get; init; }
+    public string? JobTitle { get; init; }
+    public required IReadOnlyList<string> Teams { get; init; }
+
+    /// <summary>False when this person has taken themselves out of the rotation.</summary>
+    public required bool IsAvailableForAssignment { get; init; }
+
+    /// <summary>Zero means no ceiling has been set.</summary>
+    public required int MaxConcurrentTickets { get; init; }
+
+    public required int OpenTickets { get; init; }
+    public required int InProgress { get; init; }
+
+    /// <summary>Open, but waiting on the requester or a third party rather than on them.</summary>
+    public required int Waiting { get; init; }
+
+    public required int Critical { get; init; }
+    public required int High { get; init; }
+    public required int SlaBreached { get; init; }
+
+    /// <summary>Age of their longest-standing open ticket, in days.</summary>
+    public double? OldestOpenDays { get; init; }
+
+    public required bool IsOverCapacity { get; init; }
+}
+
 // ---------------------------------------------------------------------- teams
 
 public sealed record TeamResponse

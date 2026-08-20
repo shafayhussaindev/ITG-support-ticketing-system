@@ -187,9 +187,13 @@ public class AiAndRelatedRecordTests(ApiFactory factory)
     public async Task An_unavailable_model_never_blocks_ticket_creation()
     {
         // Ticket operations must not depend on a third party being reachable.
-        var requester = await SignInAsync("requester@itg.test");
+        //
+        // Raised by staff, whose severity claim is taken at face value. A requester's is
+        // capped at High, and this test is asserting that the rule engine still decides
+        // the priority when the model is unavailable — not what the cap does.
+        var staff = await SignInAsync("agent@itg.test");
 
-        var response = await requester.PostAsJsonAsync("/api/v1/tickets", new CreateTicketRequest
+        var response = await staff.PostAsJsonAsync("/api/v1/tickets", new CreateTicketRequest
         {
             Subject = "Raised while AI is switched off",
             Description = "Creation must succeed regardless of AI availability.",

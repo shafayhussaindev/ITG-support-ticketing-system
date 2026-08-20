@@ -41,6 +41,18 @@ public sealed class ReportsController(IDispatcher dispatcher) : ControllerBase
         Ok(await dispatcher.QueryAsync(new GetAgentPerformanceReportQuery(parameters), cancellationToken));
 
     /// <summary>Raised against resolved over time, with the resulting backlog.</summary>
+    /// <summary>How often requesters ask for more severity than they may declare.</summary>
+    [HttpGet("severity-claims")]
+    [HasPermission(Permissions.Reports.View)]
+    [SwaggerOperation(Summary = "Over-claimed severity", Description =
+        "Requesters whose impact or urgency was reduced by the organization's cap, worst "
+        + "rate first. A rate rather than a count, because ten over-claims in two hundred "
+        + "tickets is not the same problem as four in four.")]
+    [ProducesResponseType<SeverityClaimReport>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<SeverityClaimReport>> SeverityClaims(
+        [FromQuery] ReportQueryParameters parameters, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetSeverityClaimReportQuery(parameters), cancellationToken));
+
     [HttpGet("volume-trend")]
     [HasPermission(Permissions.Reports.View)]
     [SwaggerOperation(Summary = "Volume and backlog", Description =

@@ -74,6 +74,8 @@ public static class TicketProjection
             Type = t2.Type.ToString(),
             Impact = t2.Impact.ToString(),
             Urgency = t2.Urgency.ToString(),
+            ClaimedImpact = t2.ClaimedImpact == null ? null : t2.ClaimedImpact.ToString(),
+            ClaimedUrgency = t2.ClaimedUrgency == null ? null : t2.ClaimedUrgency.ToString(),
             Priority = t2.Priority.ToString(),
             SuggestedPriority = t2.SuggestedPriority.ToString(),
             PriorityDecisionSource = t2.PriorityDecisionSource.ToString(),

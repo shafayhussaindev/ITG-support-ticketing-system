@@ -27,6 +27,17 @@ public static class Permissions
         public const string Accept = "ticket.accept";
         public const string Transfer = "ticket.transfer";
         public const string ChangePriority = "ticket.change_priority";
+
+        /// <summary>
+        /// Whether the holder's own claim of impact and urgency is taken at face value.
+        /// </summary>
+        /// <remarks>
+        /// Without it, a ticket raised by this person is capped at the organization's
+        /// configured maximum and what they asked for is recorded alongside it. Everyone
+        /// marks their own request urgent; the cap is what stops that inflating every
+        /// ticket to Critical and leaving the genuinely critical ones indistinguishable.
+        /// </remarks>
+        public const string ClaimAnySeverity = "ticket.claim_any_severity";
         public const string ChangeStatus = "ticket.change_status";
         public const string Resolve = "ticket.resolve";
         public const string Close = "ticket.close";
@@ -107,7 +118,8 @@ public static class Permissions
         Tickets.Create, Tickets.ViewOwn, Tickets.ViewAssigned, Tickets.ViewTeam,
         Tickets.ViewDepartment, Tickets.ViewOrganization, Tickets.ViewAll, Tickets.Edit,
         Tickets.Assign, Tickets.Reassign, Tickets.Accept, Tickets.Transfer,
-        Tickets.ChangePriority, Tickets.ChangeStatus, Tickets.Resolve, Tickets.Close,
+        Tickets.ChangePriority, Tickets.ClaimAnySeverity, Tickets.ChangeStatus,
+        Tickets.Resolve, Tickets.Close,
         Tickets.Reopen, Tickets.Cancel, Tickets.Delete, Tickets.InternalNote,
         Tickets.PublicReply, Tickets.LogWork, Tickets.ConfirmResolution,
         Tickets.LinkRecords, Tickets.RecordRootCause,

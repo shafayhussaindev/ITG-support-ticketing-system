@@ -6,6 +6,7 @@ using SupportTicketing.Application.Dispatching;
 using SupportTicketing.Application.Features.Escalations;
 using SupportTicketing.Application.Features.Notifications;
 using SupportTicketing.Application.Features.Sla;
+using SupportTicketing.Application.Features.Tickets;
 
 namespace SupportTicketing.Application;
 
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<ISlaEventRecorder, SlaEventRecorder>();
         services.AddScoped<ISlaEngine, SlaEngine>();
         services.AddScoped<IPriorityMatrixResolver, PriorityMatrixResolver>();
+        services.AddScoped<ISeverityPolicy, SeverityPolicy>();
         services.AddScoped<IEscalationEngine, EscalationEngine>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationChannel, InAppNotificationChannel>();

@@ -60,6 +60,7 @@ public static class SystemRoleDefinitions
             Permissions.Tickets.Accept, Permissions.Tickets.ChangeStatus, Permissions.Tickets.Resolve,
             Permissions.Tickets.InternalNote, Permissions.Tickets.LogWork, Permissions.Tickets.LinkRecords,
             Permissions.Tickets.RecordRootCause, Permissions.Escalations.View,
+            Permissions.Tickets.ClaimAnySeverity,
             Permissions.Knowledge.Create, Permissions.Ai.Use,
         ];
 
@@ -84,7 +85,8 @@ public static class SystemRoleDefinitions
 
         string[] administrator =
         [
-            Permissions.Tickets.ViewOwn, Permissions.Knowledge.View, Permissions.Sla.View,
+            Permissions.Tickets.ViewOwn, Permissions.Tickets.ClaimAnySeverity,
+            Permissions.Knowledge.View, Permissions.Sla.View,
             Permissions.Sla.Manage, Permissions.Escalations.View, Permissions.Reports.View,
             Permissions.Reports.Export,
             Permissions.Administration.ManageUsers, Permissions.Administration.ManageRoles,

@@ -52,6 +52,7 @@ public sealed class CreateTicketCommandHandler(
     ITicketNumberGenerator numberGenerator,
     ISlaEngine slaEngine,
     IPriorityMatrixResolver priorityMatrix,
+    ISeverityPolicy severityPolicy,
     IAuditWriter audit,
     IClock clock)
     : ICommandHandler<CreateTicketCommand, TicketDetailResponse>
@@ -80,6 +81,13 @@ public sealed class CreateTicketCommandHandler(
 
         // The matrix is the authority. The requester supplied impact and urgency, both
         // of which they can judge; they were never asked to pick a priority.
+        // Capped before the matrix sees it. A requester who marks everything Critical
+        // is not lying so much as advocating, and the cap turns advocacy back into a
+        // description without discarding what they said.
+        var claim = await severityPolicy.ApplyAsync(impact, urgency, cancellationToken);
+        impact = claim.Impact;
+        urgency = claim.Urgency;
+
         var ticketType = Enum.Parse<TicketType>(request.Type, true);
 
         // Resolved through the SLA policy that will apply to this ticket, so a policy
@@ -121,6 +129,8 @@ public sealed class CreateTicketCommandHandler(
             Type = ticketType,
             Impact = impact,
             Urgency = urgency,
+            ClaimedImpact = claim.ClaimedImpact,
+            ClaimedUrgency = claim.ClaimedUrgency,
             Priority = priority.Priority,
             SuggestedPriority = priority.Priority,
             PriorityDecisionSource = DecisionSource.Rule,

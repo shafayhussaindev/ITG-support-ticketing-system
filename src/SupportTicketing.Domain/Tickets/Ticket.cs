@@ -53,6 +53,24 @@ public class Ticket : TenantEntity, IHasRowVersion
     public ImpactLevel Impact { get; set; }
     public UrgencyLevel Urgency { get; set; }
 
+    /// <summary>What the requester asked for, when it was more than they may claim.</summary>
+    /// <remarks>
+    /// <para>
+    /// Null on almost every ticket, and that is the point: a value here means somebody
+    /// claimed a severity above the organization's cap and the system reduced it. Keeping
+    /// the original rather than discarding it does two things — it lets staff see what the
+    /// requester actually believed, which is sometimes right, and it makes over-claiming
+    /// measurable instead of a matter of opinion.
+    /// </para>
+    /// <para>
+    /// Recorded, never acted on. The clamped values in <see cref="Impact"/> and
+    /// <see cref="Urgency"/> are what the priority matrix reads.
+    /// </para>
+    /// </remarks>
+    public ImpactLevel? ClaimedImpact { get; set; }
+
+    public UrgencyLevel? ClaimedUrgency { get; set; }
+
     /// <summary>
     /// Calculated from impact and urgency through the organization's matrix. Never
     /// taken from requester input, which is why the create command accepts the two

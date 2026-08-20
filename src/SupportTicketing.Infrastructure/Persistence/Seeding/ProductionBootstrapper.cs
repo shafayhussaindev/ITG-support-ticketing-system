@@ -72,10 +72,10 @@ public static class ProductionBootstrapper
         // perform on its own.
         if (await db.Organizations.IgnoreQueryFilters().AnyAsync())
         {
-            if (permissionsAdded > 0)
-            {
-                await SyncSuperAdminAsync(db, logger);
-            }
+            // Unconditionally, not only when a permission row was just created. A row
+            // added by an earlier release whose grant did not land would otherwise stay
+            // ungranted for ever, because that release will never run again.
+            await SyncSystemRolePermissionsAsync(db, logger);
 
             return new Result(permissionsAdded, false, 0, null, null);
         }
@@ -189,13 +189,77 @@ public static class ProductionBootstrapper
     }
 
     /// <summary>
-    /// Grants any newly added permission to every Super Admin role.
+    /// Grants permissions a release added to the system roles that are defined to hold them.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Super Admin means "everything", so a release that adds a capability nobody holds
-    /// would leave the only account able to fix that unable to reach it. Every other
-    /// role is left exactly as the administrator configured it.
+    /// would leave the only account able to fix that unable to reach it.
+    /// </para>
+    /// <para>
+    /// The other system roles are reconciled against their definitions for a narrower but
+    /// equally practical reason: without it, a permission added in a release exists as a
+    /// row and belongs to nobody on any database that was installed before it. The feature
+    /// ships, the seed definitions look correct, and every existing customer finds it
+    /// silently inert. Only additions are applied — a grant an administrator removed
+    /// deliberately is never restored, and a role they created themselves is never touched.
+    /// </para>
     /// </remarks>
+    private static async Task SyncSystemRolePermissionsAsync(AppDbContext db, ILogger logger)
+    {
+        var permissionsByKey = await db.Permissions
+            .Select(p => new { p.Id, p.Key })
+            .ToDictionaryAsync(p => p.Key, p => p.Id, StringComparer.Ordinal);
+
+        var definitions = SystemRoleDefinitions.PermissionsByRole;
+        var added = 0;
+
+        foreach (var (roleName, keys) in definitions)
+        {
+            if (roleName == RoleNames.SuperAdmin)
+            {
+                // Handled below, where "everything" is the definition rather than a list.
+                continue;
+            }
+
+            var roleIds = await db.Roles.IgnoreQueryFilters()
+                .Where(r => r.Name == roleName && r.IsSystemRole)
+                .Select(r => r.Id)
+                .ToListAsync();
+
+            foreach (var roleId in roleIds)
+            {
+                var held = (await db.RolePermissions.IgnoreQueryFilters()
+                        .Where(rp => rp.RoleId == roleId)
+                        .Select(rp => rp.PermissionId)
+                        .ToListAsync())
+                    .ToHashSet();
+
+                foreach (var key in keys)
+                {
+                    if (!permissionsByKey.TryGetValue(key, out var permissionId) || held.Contains(permissionId))
+                    {
+                        continue;
+                    }
+
+                    db.RolePermissions.Add(new RolePermission { RoleId = roleId, PermissionId = permissionId });
+                    held.Add(permissionId);
+                    added++;
+                }
+            }
+        }
+
+        if (added > 0)
+        {
+            await db.SaveChangesAsync();
+
+            logger.LogInformation(
+                "Granted {Count} permission(s) added by this release to their system roles.", added);
+        }
+
+        await SyncSuperAdminAsync(db, logger);
+    }
+
     private static async Task SyncSuperAdminAsync(AppDbContext db, ILogger logger)
     {
         var superAdminRoles = await db.Roles.IgnoreQueryFilters()

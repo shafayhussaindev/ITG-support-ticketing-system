@@ -27,6 +27,18 @@ public sealed class AdminUsersController(IDispatcher dispatcher) : ControllerBas
         Ok(await dispatcher.QueryAsync(new ListUsersQuery(parameters), cancellationToken));
 
     /// <summary>Returns one account, including its effective permissions.</summary>
+    /// <summary>Open work per member of staff, as it stands now.</summary>
+    [HttpGet("workload")]
+    [HasPermission(Permissions.Administration.ManageUsers)]
+    [SwaggerOperation(Summary = "Staff workload", Description =
+        "Everyone who can be assigned work, busiest first, including those holding none — "
+        + "an empty queue is the most useful row when looking for somewhere to put a ticket. "
+        + "Counted from tickets rather than a stored tally, so it cannot drift.")]
+    [ProducesResponseType<IReadOnlyList<StaffWorkloadRow>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<StaffWorkloadRow>>> Workload(
+        CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new StaffWorkloadQuery(), cancellationToken));
+
     [HttpGet("{id:guid}")]
     [SwaggerOperation(Summary = "Get a user", Description =
         "Effective permissions are the union of the user's roles with any per-user "
