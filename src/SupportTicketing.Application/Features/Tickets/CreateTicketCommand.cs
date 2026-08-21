@@ -55,6 +55,7 @@ public sealed class CreateTicketCommandHandler(
     IPriorityMatrixResolver priorityMatrix,
     ISeverityPolicy severityPolicy,
     ITicketAudience ticketAudience,
+    IRequesterAudience requesterAudience,
     IAuditWriter audit,
     IClock clock)
     : ICommandHandler<CreateTicketCommand, TicketDetailResponse>
@@ -200,6 +201,7 @@ public sealed class CreateTicketCommandHandler(
         // the ticket land in the same transaction. A ticket that exists without the
         // announcement is the failure this is here to prevent.
         await ticketAudience.RaisedAsync(ticket, cancellationToken);
+        await requesterAudience.AcknowledgeAsync(ticket, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

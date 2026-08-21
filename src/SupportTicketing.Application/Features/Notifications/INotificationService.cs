@@ -23,6 +23,17 @@ public sealed record NotificationRequest
 
     /// <summary>Interrupt this recipient rather than leaving it in the bell.</summary>
     public bool ShowAsPopup { get; init; }
+
+    /// <summary>
+    /// Send this by email as well, overriding what the event type would decide.
+    /// </summary>
+    /// <remarks>
+    /// Null defers to <see cref="EmailPolicy"/>. Set explicitly where the caller knows
+    /// something the event type cannot — a breach matters to the person holding the
+    /// ticket and belongs in a supervisor's list rather than their inbox, and both are
+    /// the same event type.
+    /// </remarks>
+    public bool? SendEmail { get; init; }
     public string? Link { get; init; }
     public Guid? TicketId { get; init; }
     public string? TicketNumber { get; init; }

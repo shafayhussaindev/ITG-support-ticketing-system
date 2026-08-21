@@ -6,6 +6,7 @@ using SupportTicketing.Domain.Enums;
 using SupportTicketing.Domain.Identity;
 using SupportTicketing.Application.Features.Sla;
 using SupportTicketing.Domain.Tickets;
+using SupportTicketing.Application.Features.Notifications;
 
 namespace SupportTicketing.Application.Features.Tickets;
 
@@ -34,7 +35,8 @@ public sealed class AddCommentCommandValidator : AbstractValidator<AddCommentCom
 /// serialisation bug or a future export tried to include one.
 /// </remarks>
 public sealed class AddCommentCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine,
+    IRequesterAudience requesterAudience, IAuditWriter audit, IClock clock)
     : ICommandHandler<AddCommentCommand, TicketCommentResponse>
 {
     public async Task<TicketCommentResponse> HandleAsync(
@@ -111,6 +113,12 @@ public sealed class AddCommentCommandHandler(
             },
             reason: request.IsInternal ? "Internal note added." : "Public reply added.",
             cancellationToken: cancellationToken);
+
+        // The audience refuses anything that is not a public reply, so an internal
+        // note cannot leave the building even if this is ever called with one.
+        await requesterAudience.RepliedAsync(
+            ticket, comment.Type, comment.Body, currentUser.FullName ?? "The support desk",
+            cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

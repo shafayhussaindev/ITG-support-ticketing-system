@@ -17,15 +17,10 @@ namespace SupportTicketing.Application.Features.Notifications;
 public sealed class NotificationService(IAppDbContext db, IClock clock) : INotificationService
 {
     /// <summary>
-    /// Channels attempted unless the recipient has opted out. In-app is always
-    /// included: it is the record of what the user was told, independent of whether
-    /// any external system was reachable.
+    /// In-app is always attempted: it is the record of what the user was told,
+    /// independent of whether any external system was reachable. Email is decided per
+    /// event and per recipient — see <see cref="EmailPolicy"/>.
     /// </summary>
-    private static readonly NotificationChannel[] DefaultChannels =
-    [
-        NotificationChannel.InApp,
-        NotificationChannel.Email,
-    ];
 
     public async Task<bool> RaiseAsync(NotificationRequest request, CancellationToken cancellationToken)
     {
@@ -70,7 +65,15 @@ public sealed class NotificationService(IAppDbContext db, IClock clock) : INotif
             .Select(p => p.Channel)
             .ToListAsync(cancellationToken);
 
-        foreach (var channel in DefaultChannels.Where(c => !disabled.Contains(c)))
+        // In-app always; email only when this event, for this recipient, earns one.
+        var channels = new List<NotificationChannel> { NotificationChannel.InApp };
+
+        if (request.SendEmail ?? EmailPolicy.ShouldEmail(request.EventType))
+        {
+            channels.Add(NotificationChannel.Email);
+        }
+
+        foreach (var channel in channels.Where(c => !disabled.Contains(c)))
         {
             db.NotificationDeliveries.Add(new NotificationDelivery
             {

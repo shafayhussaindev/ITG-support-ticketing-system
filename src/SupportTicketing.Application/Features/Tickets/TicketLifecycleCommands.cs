@@ -472,7 +472,8 @@ public sealed class ResolveTicketCommandValidator : AbstractValidator<ResolveTic
 }
 
 public sealed class ResolveTicketCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine,
+    IRequesterAudience requesterAudience, IAuditWriter audit, IClock clock)
     : ICommandHandler<ResolveTicketCommand, TicketDetailResponse>
 {
     public async Task<TicketDetailResponse> HandleAsync(
@@ -514,6 +515,11 @@ public sealed class ResolveTicketCommandHandler(
             reason: "Ticket resolved.",
             cancellationToken: cancellationToken);
 
+        // Same transaction as the resolution, so the requester cannot be told about
+        // an outcome that was then rolled back.
+        await requesterAudience.ResolvedAsync(
+            ticket, ticket.ResolutionSummary, cancellationToken);
+
         await db.SaveChangesAsync(cancellationToken);
         return await TicketProjection.DetailAsync(db, ticket.Id, currentUser, cancellationToken);
     }
@@ -525,7 +531,8 @@ public sealed record CloseTicketCommand(Guid TicketId, CloseTicketRequest Reques
     : ICommand<TicketDetailResponse>;
 
 public sealed class CloseTicketCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser,
+    IRequesterAudience requesterAudience, IAuditWriter audit, IClock clock)
     : ICommandHandler<CloseTicketCommand, TicketDetailResponse>
 {
     public async Task<TicketDetailResponse> HandleAsync(
@@ -572,6 +579,8 @@ public sealed class CloseTicketCommandHandler(
             changes: new { To = nameof(TicketStatus.Closed), ClosureReason = ticket.ClosureReason?.ToString() },
             reason: reason,
             cancellationToken: cancellationToken);
+
+        await requesterAudience.ClosedAsync(ticket, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
         return await TicketProjection.DetailAsync(db, ticket.Id, currentUser, cancellationToken);

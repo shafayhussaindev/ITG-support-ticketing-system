@@ -213,7 +213,10 @@ public sealed class EmailDispatchService(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        if (sent > 0 || dead > 0)
+        // Failures are logged too. A pass where everything failed used to log nothing at
+        // all, which looks identical to a pass with nothing to do — so a mail server
+        // rejecting every message was invisible until somebody read the database.
+        if (sent > 0 || dead > 0 || failed > 0)
         {
             logger.LogInformation(
                 "Email dispatch: {Sent} sent, {Failed} will retry, {Dead} given up on.",

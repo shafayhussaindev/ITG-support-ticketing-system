@@ -97,9 +97,14 @@ public sealed class SlaAudience(IAppDbContext db, INotificationService notificat
                 continue;
             }
 
+            // Supervision reads a list; it does not need an inbox item per event. The
+            // exception is a genuine emergency, which is rare enough to still mean
+            // something when it does arrive.
+            var worthAnEmail = severity == NotificationSeverity.Critical;
+
             raised += await RaiseAsync(ticket, supervisorId, eventType, severity, title,
                 Unassigned(ticket, body), $"{deduplicationKey}:supervisor",
-                popup: false, cancellationToken);
+                popup: false, cancellationToken, sendEmail: worthAnEmail);
         }
 
         return raised;
@@ -114,7 +119,7 @@ public sealed class SlaAudience(IAppDbContext db, INotificationService notificat
     private async Task<int> RaiseAsync(
         Ticket ticket, Guid recipientId, NotificationEventType eventType,
         NotificationSeverity severity, string title, string body, string key,
-        bool popup, CancellationToken cancellationToken) =>
+        bool popup, CancellationToken cancellationToken, bool? sendEmail = null) =>
         await notifications.RaiseAsync(
             new NotificationRequest
             {
@@ -129,6 +134,7 @@ public sealed class SlaAudience(IAppDbContext db, INotificationService notificat
                 TicketNumber = ticket.TicketNumber,
                 DeduplicationKey = key,
                 ShowAsPopup = popup,
+                SendEmail = sendEmail,
             },
             cancellationToken)
             ? 1
