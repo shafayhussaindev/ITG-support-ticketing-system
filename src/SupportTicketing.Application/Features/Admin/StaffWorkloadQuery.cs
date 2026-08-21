@@ -37,9 +37,33 @@ public sealed class StaffWorkloadQueryHandler(IAppDbContext db, ICurrentUser cur
     public async Task<IReadOnlyList<StaffWorkloadRow>> HandleAsync(
         StaffWorkloadQuery query, CancellationToken cancellationToken)
     {
-        currentUser.Require(Permissions.Administration.ManageUsers);
+        // Two audiences with the same question and different scopes. An administrator
+        // is balancing the whole desk; a team lead is balancing their own team and has
+        // no business reading everyone else's numbers.
+        var seesEveryone = currentUser.Has(Permissions.Administration.ManageUsers);
+
+        if (!seesEveryone)
+        {
+            currentUser.Require(Permissions.Reports.ViewTeam);
+        }
 
         var now = clock.UtcNow;
+
+        // Teams this person actually leads, which is narrower than teams they belong
+        // to: being on a team does not make somebody else's queue your business.
+        var ledTeamIds = seesEveryone
+            ? []
+            : await db.Teams.AsNoTracking()
+                .Where(t => t.TeamLeadId == currentUser.UserId)
+                .Select(t => t.Id)
+                .ToListAsync(cancellationToken);
+
+        if (!seesEveryone && ledTeamIds.Count == 0)
+        {
+            // Holds the permission but leads nothing. An empty list is the honest
+            // answer; refusing would suggest the screen is forbidden rather than empty.
+            return [];
+        }
 
         // Anyone who can be assigned work: a role granting ticket.view_assigned is what
         // distinguishes staff from a requester, and it reads the role table rather than
@@ -48,7 +72,8 @@ public sealed class StaffWorkloadQueryHandler(IAppDbContext db, ICurrentUser cur
             .Where(u => u.IsActive
                 && !u.IsAnonymised
                 && u.UserRoles.Any(ur => ur.Role!.RolePermissions
-                    .Any(rp => rp.Permission!.Key == Permissions.Tickets.ViewAssigned)))
+                    .Any(rp => rp.Permission!.Key == Permissions.Tickets.ViewAssigned))
+                && (seesEveryone || u.TeamMemberships.Any(m => m.IsActive && ledTeamIds.Contains(m.TeamId))))
             .Select(u => new
             {
                 u.Id,

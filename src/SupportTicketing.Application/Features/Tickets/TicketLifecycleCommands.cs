@@ -7,6 +7,7 @@ using SupportTicketing.Domain.Enums;
 using SupportTicketing.Domain.Identity;
 using SupportTicketing.Application.Features.Sla;
 using SupportTicketing.Domain.Tickets;
+using SupportTicketing.Application.Features.Notifications;
 
 namespace SupportTicketing.Application.Features.Tickets;
 
@@ -95,7 +96,8 @@ public sealed class AssignTicketCommandValidator : AbstractValidator<AssignTicke
 }
 
 public sealed class AssignTicketCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser, ITicketAudience ticketAudience,
+    IAuditWriter audit, IClock clock)
     : ICommandHandler<AssignTicketCommand, TicketDetailResponse>
 {
     public async Task<TicketDetailResponse> HandleAsync(
@@ -188,6 +190,10 @@ public sealed class AssignTicketCommandHandler(
             },
             reason: request.Reason,
             cancellationToken: cancellationToken);
+
+        // Same transaction as the assignment itself, so work cannot change hands
+        // without the new owner being told.
+        await ticketAudience.AssignedAsync(ticket, previousAgentId, previousTeamId, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
         return await TicketProjection.DetailAsync(db, ticket.Id, currentUser, cancellationToken);

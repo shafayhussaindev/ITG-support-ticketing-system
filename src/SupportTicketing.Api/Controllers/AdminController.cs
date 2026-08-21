@@ -27,18 +27,6 @@ public sealed class AdminUsersController(IDispatcher dispatcher) : ControllerBas
         Ok(await dispatcher.QueryAsync(new ListUsersQuery(parameters), cancellationToken));
 
     /// <summary>Returns one account, including its effective permissions.</summary>
-    /// <summary>Open work per member of staff, as it stands now.</summary>
-    [HttpGet("workload")]
-    [HasPermission(Permissions.Administration.ManageUsers)]
-    [SwaggerOperation(Summary = "Staff workload", Description =
-        "Everyone who can be assigned work, busiest first, including those holding none — "
-        + "an empty queue is the most useful row when looking for somewhere to put a ticket. "
-        + "Counted from tickets rather than a stored tally, so it cannot drift.")]
-    [ProducesResponseType<IReadOnlyList<StaffWorkloadRow>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<StaffWorkloadRow>>> Workload(
-        CancellationToken cancellationToken) =>
-        Ok(await dispatcher.QueryAsync(new StaffWorkloadQuery(), cancellationToken));
-
     [HttpGet("{id:guid}")]
     [SwaggerOperation(Summary = "Get a user", Description =
         "Effective permissions are the union of the user's roles with any per-user "
@@ -131,6 +119,36 @@ public sealed class AdminUsersController(IDispatcher dispatcher) : ControllerBas
     [ProducesResponseType<int>(StatusCodes.Status200OK)]
     public async Task<ActionResult<int>> RevokeSessions(Guid id, CancellationToken cancellationToken) =>
         Ok(await dispatcher.SendAsync(new RevokeUserSessionsCommand(id), cancellationToken));
+}
+
+// ------------------------------------------------------------------- workload
+
+/// <summary>
+/// Who is holding how much work.
+/// </summary>
+/// <remarks>
+/// Separate from the users controller because that one is gated on
+/// Administration.ManageUsers for the whole class, and this is deliberately reachable
+/// by a team lead who holds nothing of the sort. Two permissions reach it and the rows
+/// returned differ by which — so the handler decides, not an attribute.
+/// </remarks>
+[ApiController]
+[Route("api/v1/admin/workload")]
+[Produces("application/json")]
+public sealed class StaffWorkloadController(IDispatcher dispatcher) : ControllerBase
+{
+    /// <summary>Open work per member of staff, as it stands now.</summary>
+    [HttpGet]
+    [SwaggerOperation(Summary = "Staff workload", Description =
+        "An administrator sees the whole desk; a team lead sees only the teams they "
+        + "lead. Busiest first, including people holding nothing — an empty queue is the "
+        + "most useful row when looking for somewhere to put a ticket. Counted from "
+        + "tickets rather than a stored tally, so it cannot drift.")]
+    [ProducesResponseType<IReadOnlyList<StaffWorkloadRow>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<StaffWorkloadRow>>> Workload(
+        CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new StaffWorkloadQuery(), cancellationToken));
 }
 
 // ---------------------------------------------------------------------- roles

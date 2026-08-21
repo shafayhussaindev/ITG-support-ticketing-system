@@ -8,6 +8,7 @@ using SupportTicketing.Domain.Enums;
 using SupportTicketing.Domain.Identity;
 using SupportTicketing.Application.Features.Sla;
 using SupportTicketing.Domain.Tickets;
+using SupportTicketing.Application.Features.Notifications;
 
 namespace SupportTicketing.Application.Features.Tickets;
 
@@ -53,6 +54,7 @@ public sealed class CreateTicketCommandHandler(
     ISlaEngine slaEngine,
     IPriorityMatrixResolver priorityMatrix,
     ISeverityPolicy severityPolicy,
+    ITicketAudience ticketAudience,
     IAuditWriter audit,
     IClock clock)
     : ICommandHandler<CreateTicketCommand, TicketDetailResponse>
@@ -193,6 +195,11 @@ public sealed class CreateTicketCommandHandler(
             reason: priority.Explanation,
             source: DecisionSource.Human,
             cancellationToken: cancellationToken);
+
+        // After the SLA clock is started but before the save, so the notification and
+        // the ticket land in the same transaction. A ticket that exists without the
+        // announcement is the failure this is here to prevent.
+        await ticketAudience.RaisedAsync(ticket, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 

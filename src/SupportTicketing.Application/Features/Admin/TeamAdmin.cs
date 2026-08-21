@@ -28,11 +28,19 @@ public sealed class ListTeamsQueryHandler(IAppDbContext db, ICurrentUser current
             .Select(g => new { TeamId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.TeamId, x => x.Count, cancellationToken);
 
-        var openByAgent = await open
-            .Where(t => t.AssignedAgentId != null)
-            .GroupBy(t => t.AssignedAgentId!.Value)
-            .Select(g => new { AgentId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.AgentId, x => x.Count, cancellationToken);
+        // Counted per member *per team*, not per person. A member row sits inside a
+        // team, so an administrator reading "Ayesha: 5 open" there reasonably takes it
+        // to mean five on this team — and the guard that refuses to remove somebody
+        // holding open work counts it exactly that way. Grouping by agent alone made
+        // the number on the screen and the rule behind the button disagree.
+        var openByAgentAndTeam = await open
+            .Where(t => t.AssignedAgentId != null && t.AssignedTeamId != null)
+            .GroupBy(t => new { AgentId = t.AssignedAgentId!.Value, TeamId = t.AssignedTeamId!.Value })
+            .Select(g => new { g.Key.AgentId, g.Key.TeamId, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var openByMember = openByAgentAndTeam
+            .ToDictionary(x => (x.AgentId, x.TeamId), x => x.Count);
 
         var teamNames = await db.Teams.AsNoTracking()
             .ToDictionaryAsync(t => t.Id, t => t.Name, cancellationToken);
@@ -97,7 +105,7 @@ public sealed class ListTeamsQueryHandler(IAppDbContext db, ICurrentUser current
                             RoleInTeam = m.RoleInTeam.ToString(),
                             CapacityWeight = m.CapacityWeight,
                             IsActive = m.UserActive,
-                            OpenTickets = openByAgent.GetValueOrDefault(m.UserId),
+                            OpenTickets = openByMember.GetValueOrDefault((m.UserId, t.Id)),
                         })
                 ],
             })
