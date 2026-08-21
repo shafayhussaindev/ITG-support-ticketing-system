@@ -88,6 +88,17 @@ public static class Permissions
         public const string ViewTeam = "reports.view_team";
         public const string ViewOrganization = "reports.view_organization";
         public const string Export = "reports.export";
+
+        /// <summary>
+        /// How individual requesters use the desk, named and side by side.
+        /// </summary>
+        /// <remarks>
+        /// Granted to no role by default, which leaves it with Super Admin alone because
+        /// that role holds every permission. Deliberately separate from reports.view:
+        /// the other reports describe the desk's performance, and this one describes
+        /// named people, which is a different thing to hand out.
+        /// </remarks>
+        public const string ViewCustomerBehaviour = "reports.customer_behaviour";
     }
 
     public static class Administration
@@ -128,6 +139,7 @@ public static class Permissions
         Escalations.View, Escalations.Manage, Escalations.Acknowledge,
         Knowledge.View, Knowledge.Create, Knowledge.Edit, Knowledge.Publish, Knowledge.Archive,
         Reports.View, Reports.ViewTeam, Reports.ViewOrganization, Reports.Export,
+        Reports.ViewCustomerBehaviour,
         Administration.ViewAudit, Administration.ManageUsers, Administration.ManageRoles,
         Administration.ManageTeams, Administration.ManageCatalog,
         Administration.ManageOrganizations, Administration.ManageRouting,

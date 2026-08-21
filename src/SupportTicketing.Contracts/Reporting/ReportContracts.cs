@@ -97,6 +97,58 @@ public sealed record AgentPerformanceRow
 
 // ------------------------------------------------------------- Volume trend
 
+// --------------------------------------------------------- customer behaviour
+
+/// <summary>
+/// How individual requesters use the desk, over a period.
+/// </summary>
+/// <remarks>
+/// Behind its own permission because it names people rather than describing the desk.
+/// The averages are included so the rows can be read at all — a count means nothing
+/// until you know what ordinary looks like.
+/// </remarks>
+public sealed record CustomerBehaviourReport
+{
+    public required DateTime FromUtc { get; init; }
+    public required DateTime ToUtc { get; init; }
+
+    public required int Requesters { get; init; }
+    public required int TicketsRaised { get; init; }
+
+    /// <summary>The comparison point for every row.</summary>
+    public required double AverageTicketsPerRequester { get; init; }
+
+    public required IReadOnlyList<CustomerBehaviourRow> Rows { get; init; }
+}
+
+public sealed record CustomerBehaviourRow
+{
+    public required Guid RequesterId { get; init; }
+    public required string RequesterName { get; init; }
+    public required string RequesterEmail { get; init; }
+    public string? Department { get; init; }
+
+    public required int TicketsRaised { get; init; }
+
+    /// <summary>Times they asked for more severity than they may declare.</summary>
+    public required int OverClaimedSeverity { get; init; }
+
+    /// <summary>Tickets they reopened, counted once each however often it happened.</summary>
+    public required int Reopened { get; init; }
+
+    public required int Cancelled { get; init; }
+    public required int HighOrCritical { get; init; }
+
+    /// <summary>Resolved and still waiting on them to confirm or reject.</summary>
+    public required int AwaitingTheirConfirmation { get; init; }
+
+    /// <summary>How long they take to confirm a resolution, in hours.</summary>
+    public double? AverageConfirmationHours { get; init; }
+
+    /// <summary>Mean score they gave, where they rated anything.</summary>
+    public double? AverageSatisfaction { get; init; }
+}
+
 // ------------------------------------------------------------ severity claims
 
 /// <summary>How often requesters ask for more severity than they may declare.</summary>

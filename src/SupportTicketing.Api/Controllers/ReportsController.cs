@@ -53,6 +53,22 @@ public sealed class ReportsController(IDispatcher dispatcher) : ControllerBase
         [FromQuery] ReportQueryParameters parameters, CancellationToken cancellationToken) =>
         Ok(await dispatcher.QueryAsync(new GetSeverityClaimReportQuery(parameters), cancellationToken));
 
+    /// <summary>How individual requesters use the desk. Super Admin only.</summary>
+    [HttpGet("customer-behaviour")]
+    [HasPermission(Permissions.Reports.ViewCustomerBehaviour)]
+    [SwaggerOperation(Summary = "Customer behaviour", Description =
+        "Named requesters with how much they raise, how often they over-claim severity, "
+        + "reopen, cancel, and how long they take to confirm a resolution — each against "
+        + "the desk's own average, because there is no universal number for 'too many'. "
+        + "Behind its own permission held by nobody but the Super Admin: every other "
+        + "report describes the desk, and this one describes people.")]
+    [ProducesResponseType<CustomerBehaviourReport>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<CustomerBehaviourReport>> CustomerBehaviour(
+        [FromQuery] ReportQueryParameters parameters, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(
+            new GetCustomerBehaviourReportQuery(parameters), cancellationToken));
+
     [HttpGet("volume-trend")]
     [HasPermission(Permissions.Reports.View)]
     [SwaggerOperation(Summary = "Volume and backlog", Description =
