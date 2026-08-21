@@ -27,6 +27,11 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
+
+    <!-- SMTP. System.Net.Mail.SmtpClient is documented by Microsoft as unsuitable for
+         new development and handles modern STARTTLS negotiation poorly; MailKit is the
+         recommended replacement and the one every current guide assumes. -->
+    <PackageVersion Include="MailKit" Version="4.17.0" />
   </ItemGroup>
 
   <ItemGroup Label="Documentation">

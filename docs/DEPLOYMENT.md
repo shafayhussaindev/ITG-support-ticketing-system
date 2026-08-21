@@ -99,6 +99,74 @@ OpenAi__Model=gpt-4o-mini
 
 ---
 
+## 2b. Email
+
+Notifications appear in the application whether or not this is configured. Without it
+they appear *only* there, so a requester learns their ticket was answered by signing in
+and looking.
+
+```
+Email__Enabled=true
+Email__Host=smtp.yourprovider.com
+Email__Port=587
+Email__UseStartTls=true
+Email__UserName=<the mailbox or API user>
+Email__Password=<its password>
+Email__FromAddress=support@yourcompany.com
+Email__FromName=Support Desk
+```
+
+Port 465 instead? Set `Email__UseSsl=true` and `Email__UseStartTls=false`.
+
+**Never put the password in a committed file.** Locally:
+
+```bash
+dotnet user-secrets set "Email:Password" "<the password>" --project src/SupportTicketing.Api
+```
+
+In production it is an environment variable like the others. The application reads it
+once at startup and never writes it to a log; an authentication failure logs that
+credentials were refused and nothing more.
+
+Set `Email__Enabled=false`, or leave the host blank, and the sender stands down with a
+warning at startup. There is no fallback to localhost — a desk that quietly posts mail
+through whatever happens to be listening fails invisibly, which is worse than one that
+plainly does not send.
+
+### Testing it without emailing real people
+
+On a staging system loaded with a copy of production data:
+
+```
+Email__RedirectAllTo=you@yourcompany.com
+```
+
+Every message goes to that address instead, with the intended recipient named in the
+subject line so a redirected inbox is still readable.
+
+### When something does not arrive
+
+Delivery is a queue drained every thirty seconds, not part of the request that raised the
+notification — assigning a ticket must not fail because a mail server is slow. Each
+attempt is recorded:
+
+| State | Meaning |
+|---|---|
+| Pending | Queued, not yet attempted |
+| Sent | Accepted by the mail server |
+| Failed | A transient problem; it will be retried |
+| DeadLettered | Given up on after five attempts, or refused outright |
+| Suppressed | The recipient's account was deleted |
+
+```sql
+SELECT State, COUNT(*), MAX(FailureReason)
+FROM NotificationDeliveries WHERE Channel = 2 GROUP BY State;
+```
+
+Retries back off, doubling each time, so a mail server that restarts is not hammered by
+the whole backlog. A dead-lettered row keeps its reason, so you can see that somebody is
+not receiving mail rather than assuming they read it.
+
 ## 3. Install
 
 ### Build

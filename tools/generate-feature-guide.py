@@ -110,6 +110,12 @@ SECTIONS = [
          "The assignee is shown a popup. Team leads, administrators and super admins get an "
          "entry in their notification list — interrupting them for every warning would "
          "teach them to dismiss all of them."),
+        ("Email, when a mail server is configured",
+         "Every notification is queued for email as well as the application. Delivery is a "
+         "queue drained by a worker rather than part of the request, so assigning a ticket "
+         "never waits on a mail server, and a message that fails is retried with a widening "
+         "gap before being given up on. A staging system can redirect every message to one "
+         "address so a copy of production data cannot email real customers."),
         ("New work announces itself",
          "Being assigned a ticket, or a ticket arriving in your team's queue, notifies "
          "everyone who has to pick it up. Nobody is notified of their own action."),
@@ -231,9 +237,6 @@ SECTIONS = [
 ]
 
 NOT_INCLUDED = [
-    ("Email notifications",
-     "Notifications appear in the application only. There is no mail sender, so nobody is "
-     "emailed about anything — the most significant gap on this list for a support desk."),
     ("Time recorded against a ticket",
      "The database and the interface expect it, but no endpoint exists, so staff cannot log "
      "hours worked."),

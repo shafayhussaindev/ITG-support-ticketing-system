@@ -12,6 +12,7 @@ using SupportTicketing.Infrastructure.Persistence;
 using SupportTicketing.Infrastructure.Persistence.Interceptors;
 using SupportTicketing.Infrastructure.Security;
 using SupportTicketing.Infrastructure.Storage;
+using SupportTicketing.Infrastructure.Notifications;
 
 namespace SupportTicketing.Infrastructure;
 
@@ -122,6 +123,22 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
+
+        // The real sender only when a server is actually configured. Registering it
+        // unconditionally would mean every notification attempt failing against a host
+        // nobody set, filling the delivery table with noise.
+        services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.Section));
+
+        var email = configuration.GetSection(EmailOptions.Section).Get<EmailOptions>() ?? new EmailOptions();
+
+        if (email.Enabled && !string.IsNullOrWhiteSpace(email.Host) && !string.IsNullOrWhiteSpace(email.FromAddress))
+        {
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        }
+        else
+        {
+            services.AddSingleton<IEmailSender, DisabledEmailSender>();
+        }
 
         return services;
     }

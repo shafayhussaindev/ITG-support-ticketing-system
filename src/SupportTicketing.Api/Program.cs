@@ -51,6 +51,9 @@ builder.Services.AddOptions<SlaMonitorOptions>()
     .ValidateOnStart();
 
 builder.Services.AddHostedService<SlaMonitorService>();
+builder.Services.Configure<EmailDispatchOptions>(
+    builder.Configuration.GetSection(EmailDispatchOptions.Section));
+builder.Services.AddHostedService<EmailDispatchService>();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
