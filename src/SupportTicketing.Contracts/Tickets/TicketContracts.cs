@@ -204,6 +204,50 @@ public sealed record AttachmentResponse
     public required DateTime CreatedAtUtc { get; init; }
 }
 
+/// <summary>One person's spell of work on one ticket, on one day.</summary>
+public sealed record WorkLogResponse
+{
+    public required Guid Id { get; init; }
+    public required Guid UserId { get; init; }
+    public required string UserName { get; init; }
+    public required int MinutesSpent { get; init; }
+
+    /// <summary>The day the work happened, which is not always the day it was recorded.</summary>
+    public required DateTime WorkDateUtc { get; init; }
+
+    public required string Description { get; init; }
+    public required bool IsBillable { get; init; }
+    public required DateTime CreatedAtUtc { get; init; }
+
+    /// <summary>
+    /// Whether the caller may withdraw this entry.
+    /// </summary>
+    /// <remarks>
+    /// Computed here rather than in the browser so the button and the endpoint cannot
+    /// disagree. Only the person who recorded it, because a timesheet somebody else can
+    /// quietly edit is not a record of anything.
+    /// </remarks>
+    public required bool CanDelete { get; init; }
+}
+
+/// <summary>
+/// Everything logged against a ticket, with the totals worth reading at a glance.
+/// </summary>
+/// <remarks>
+/// The totals are summed here rather than in the browser. A page that adds up its own
+/// figures shows a different total the moment it is holding a partial list, and the
+/// number people will quote in a meeting should come from one place.
+/// </remarks>
+public sealed record TicketWorkSummaryResponse
+{
+    public required IReadOnlyList<WorkLogResponse> Entries { get; init; }
+    public required int TotalMinutes { get; init; }
+    public required int BillableMinutes { get; init; }
+
+    /// <summary>How many different people have worked on it.</summary>
+    public required int Contributors { get; init; }
+}
+
 public sealed record TicketTimelineEntry
 {
     public required string Kind { get; init; }

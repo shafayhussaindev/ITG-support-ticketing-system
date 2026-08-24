@@ -44,6 +44,10 @@ export const ticketService = {
 
   timeline: (id) => api.get(`/tickets/${id}/timeline`),
 
+  work: (id) => api.get(`/tickets/${id}/work`),
+  logWork: (id, body) => api.post(`/tickets/${id}/work`, body),
+  deleteWork: (id, workLogId) => api.delete(`/tickets/${id}/work/${workLogId}`),
+
   accept: (id) => api.post(`/tickets/${id}/accept`, {}),
   assign: (id, body) => api.post(`/tickets/${id}/assign`, body),
   changeStatus: (id, body) => api.post(`/tickets/${id}/status`, body),
@@ -61,4 +65,5 @@ export const ticketKeys = {
   comments: (id) => ['tickets', 'comments', id],
   attachments: (id) => ['tickets', 'attachments', id],
   timeline: (id) => ['tickets', 'timeline', id],
+  work: (id) => ['tickets', 'work', id],
 };

@@ -15,6 +15,7 @@ import { Conversation } from './Conversation';
 import { SlaPanel } from './SlaPanel';
 import { SatisfactionPanel } from './SatisfactionPanel';
 import { BusinessContextPanel } from './BusinessContextPanel';
+import { WorkLogPanel } from './WorkLogPanel';
 import { AiSuggestionPanel } from './AiSuggestionPanel';
 import s from './TicketDetailPage.module.css';
 
@@ -217,6 +218,8 @@ export function TicketDetailPage() {
           />
 
           <SlaPanel ticketId={id} />
+
+          <WorkLogPanel ticketId={id} />
 
           <BusinessContextPanel ticketId={id} records={ticket.relatedRecords ?? []} />
 

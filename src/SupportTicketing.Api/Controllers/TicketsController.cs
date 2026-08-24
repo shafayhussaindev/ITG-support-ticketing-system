@@ -161,6 +161,51 @@ public sealed class TicketsController(IDispatcher dispatcher) : ControllerBase
         return StatusCode(StatusCodes.Status201Created, comment);
     }
 
+    /// <summary>Time logged against this ticket, with totals.</summary>
+    [HttpGet("{id:guid}/work")]
+    [HasPermission(Permissions.Tickets.LogWork)]
+    [SwaggerOperation(Summary = "Get logged work", Description =
+        "Every entry, newest work first, plus total and billable minutes. Behind "
+        + "ticket.log_work rather than ticket visibility: how long the desk spent on a "
+        + "ticket is not something to show its requester.")]
+    [ProducesResponseType<TicketWorkSummaryResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<TicketWorkSummaryResponse>> Work(
+        Guid id, CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetTicketWorkQuery(id), cancellationToken));
+
+    /// <summary>Records time spent on this ticket.</summary>
+    [HttpPost("{id:guid}/work")]
+    [HasPermission(Permissions.Tickets.LogWork)]
+    [SwaggerOperation(Summary = "Log work", Description =
+        "Always recorded against the caller. Permitted on a closed ticket, because "
+        + "timesheets are filled in after the fact; the work date may not be in the "
+        + "future nor before the ticket was raised.")]
+    [ProducesResponseType<WorkLogResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<WorkLogResponse>> LogWork(
+        Guid id, [FromBody] LogWorkRequest request, CancellationToken cancellationToken)
+    {
+        var entry = await dispatcher.SendAsync(new LogWorkCommand(id, request), cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, entry);
+    }
+
+    /// <summary>Withdraws one of your own time entries.</summary>
+    [HttpDelete("{id:guid}/work/{workLogId:guid}")]
+    [HasPermission(Permissions.Tickets.LogWork)]
+    [SwaggerOperation(Summary = "Withdraw a work entry", Description =
+        "Only your own. Somebody else's entry answers 404 rather than 403, because "
+        + "whose entry it is, is not something a caller needs confirmed.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteWork(
+        Guid id, Guid workLogId, CancellationToken cancellationToken)
+    {
+        await dispatcher.SendAsync(new DeleteWorkLogCommand(id, workLogId), cancellationToken);
+        return NoContent();
+    }
+
     /// <summary>Reconstructs the ticket's lifecycle from its append-only history.</summary>
     [HttpGet("{id:guid}/timeline")]
     [SwaggerOperation(Summary = "Get the timeline", Description =

@@ -60,3 +60,21 @@ export function formatDate(utcValue) {
   const date = new Date(utcValue);
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString();
 }
+
+/**
+ * Minutes as people say them out loud.
+ *
+ * <p>"90" is a number; "1 h 30 m" is a duration. Timesheet totals get read aloud in
+ * meetings, and nobody divides by sixty in their head while doing it.</p>
+ */
+export function formatDuration(minutes) {
+  if (!minutes || minutes < 1) return '0 m';
+
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+
+  if (hours === 0) return `${rest} m`;
+  if (rest === 0) return `${hours} h`;
+
+  return `${hours} h ${rest} m`;
+}
