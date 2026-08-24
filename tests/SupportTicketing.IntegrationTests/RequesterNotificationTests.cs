@@ -106,6 +106,34 @@ public class RequesterNotificationTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task The_same_reply_twice_is_sent_twice()
+    {
+        var requester = await SignInAsync("requester@itg.test");
+        var agent = await SignInAsync("agent@itg.test");
+
+        var ticket = await RaiseAsync(requester, "Chasing the same question twice");
+
+        // The wording matters: it is a phrase somebody genuinely writes more than once.
+        // The de-duplication key was a hash of the body, so the second one was discarded
+        // as a duplicate of the first and the requester never heard the chase.
+        const string chase = "Any update on this?";
+
+        for (var i = 0; i < 2; i++)
+        {
+            var posted = await agent.PostAsJsonAsync(
+                $"/api/v1/tickets/{ticket.Id}/comments",
+                new AddCommentRequest { Body = chase, IsInternal = false });
+
+            posted.StatusCode.ShouldBe(HttpStatusCode.Created, await posted.Content.ReadAsStringAsync());
+        }
+
+        var told = (await InboxAsync(requester))
+            .Count(n => n.TicketNumber == ticket.TicketNumber && n.EventType == "TicketReplied");
+
+        told.ShouldBe(2, "two replies were written, so two should have been passed on");
+    }
+
+    [Fact]
     public async Task Raising_a_ticket_is_acknowledged()
     {
         var requester = await SignInAsync("requester@itg.test");

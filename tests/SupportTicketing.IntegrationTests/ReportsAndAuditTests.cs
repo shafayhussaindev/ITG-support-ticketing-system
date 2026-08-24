@@ -217,6 +217,52 @@ public class ReportsAndAuditTests(ApiFactory factory)
         audit.Items.ShouldContain(entry => entry.EntityReference == "tickets");
     }
 
+    /// <summary>
+    /// Every report the reports screen can show must also export.
+    /// </summary>
+    /// <remarks>
+    /// Two of these were on screen with an Export button above them and absent from the
+    /// handler's list of known reports, so the button answered with a validation error
+    /// naming reports the user was not looking at. Enumerated here because the failure
+    /// is a list falling behind the interface, and only a list can catch that.
+    /// </remarks>
+    [Theory]
+    [InlineData("tickets")]
+    [InlineData("sla-compliance")]
+    [InlineData("agent-performance")]
+    [InlineData("satisfaction")]
+    [InlineData("volume-trend")]
+    [InlineData("customer-behaviour")]
+    public async Task Every_report_on_the_screen_can_be_exported(string report)
+    {
+        // The super admin, because customer behaviour sits behind its own permission and
+        // this is asking whether the report exports at all, not who may have it.
+        var admin = await SignInAsync("superadmin@itg.test");
+
+        var response = await admin.PostAsJsonAsync(
+            "/api/v1/reports/export", new ReportExportRequest { Report = report });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        response.Content.Headers.ContentType!.MediaType.ShouldBe("text/csv");
+
+        // A header row at minimum. An empty file would pass a status check and still be
+        // a broken download.
+        (await response.Content.ReadAsStringAsync()).Trim().ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public async Task Exporting_customer_behaviour_still_needs_its_own_permission()
+    {
+        // Holding the general export permission must not be enough. This report names
+        // individuals and says unflattering things about them.
+        var manager = await SignInAsync("manager@itg.test");
+
+        var response = await manager.PostAsJsonAsync(
+            "/api/v1/reports/export", new ReportExportRequest { Report = "customer-behaviour" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
     [Fact]
     public async Task An_unknown_report_name_is_rejected_rather_than_guessed_at()
     {

@@ -136,11 +136,29 @@ export function CreateTicketPage() {
     },
   });
 
-  // Staff are believed; only a requester is capped. Showing the warning to somebody it
-  // does not apply to would be worse than not showing it at all.
-  const capped = !can('ticket.claim_any_severity');
+  // Asked of the server rather than assumed. The cap is configurable, so a form that
+  // hardcodes "Critical is reserved" goes quiet the moment an administrator lowers it —
+  // producing exactly the silent reduction the warning exists to prevent.
+  const { data: ceiling } = useQuery({
+    queryKey: ['tickets', 'severity-ceiling'],
+    queryFn: ticketService.severityCeiling,
+    staleTime: 5 * 60_000,
+  });
 
-  const preview = previewPriority(impact, urgency);
+  const capped = ceiling?.appliesToCaller ?? false;
+
+  const overIndex = (chosen, max) => LEVELS.indexOf(chosen) > LEVELS.indexOf(max);
+
+  const impactCapped = capped && ceiling && overIndex(impact, ceiling.maxImpact);
+  const urgencyCapped = capped && ceiling && overIndex(urgency, ceiling.maxUrgency);
+
+  // Previewed from what will actually be stored, not from what was typed. Showing
+  // "Critical" above a note saying it will be logged as High put two different answers
+  // on the same screen.
+  const preview = previewPriority(
+    impactCapped ? ceiling.maxImpact : impact,
+    urgencyCapped ? ceiling.maxUrgency : urgency,
+  );
 
   return (
     <form onSubmit={handleSubmit((values) => createTicket.mutateAsync(values))} noValidate>
@@ -323,11 +341,20 @@ export function CreateTicketPage() {
                     requester whose Critical silently became High concludes the system
                     ignored them; one who was told the ceiling knows a person will
                     look. Only shown to people the cap applies to. */}
-                {capped && (impact === 'Critical' || urgency === 'Critical') ? (
+                {impactCapped || urgencyCapped ? (
                   <p className={s.previewCap}>
-                    Critical is reserved for support to set. This will be logged as{' '}
-                    <strong>High</strong> with what you asked for recorded alongside it,
-                    and a team lead can raise it once they have looked.
+                    {impactCapped && urgencyCapped
+                      ? <>Impact above <strong>{ceiling.maxImpact}</strong> and urgency
+                          above <strong>{ceiling.maxUrgency}</strong> are reserved for
+                          support to set.</>
+                      : impactCapped
+                        ? <>Impact above <strong>{ceiling.maxImpact}</strong> is reserved
+                            for support to set.</>
+                        : <>Urgency above <strong>{ceiling.maxUrgency}</strong> is reserved
+                            for support to set.</>}
+                    {' '}This will be logged as <strong>{preview}</strong> with what you
+                    asked for recorded alongside it, and a team lead can raise it once
+                    they have looked.
                   </p>
                 ) : null}
               </div>

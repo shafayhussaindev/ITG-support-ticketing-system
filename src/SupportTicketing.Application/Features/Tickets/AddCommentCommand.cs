@@ -117,7 +117,7 @@ public sealed class AddCommentCommandHandler(
         // The audience refuses anything that is not a public reply, so an internal
         // note cannot leave the building even if this is ever called with one.
         await requesterAudience.RepliedAsync(
-            ticket, comment.Type, comment.Body, currentUser.FullName ?? "The support desk",
+            ticket, comment.Id, comment.Type, comment.Body, currentUser.FullName ?? "The support desk",
             cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);

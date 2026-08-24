@@ -23,6 +23,10 @@ export const ticketService = {
   get: (id) => api.get(`/tickets/${id}`),
   create: (body) => api.post('/tickets', body),
 
+  // What the caller may claim, so the form can say so before they submit rather than
+  // the server quietly reducing it afterwards.
+  severityCeiling: () => api.get('/tickets/severity-ceiling'),
+
   attachments: (id) => api.get(`/tickets/${id}/attachments`),
 
   uploadAttachment: (id, file, { commentId, isInternalOnly } = {}) => {

@@ -33,6 +33,23 @@ public sealed record CreateTicketRequest
     public IReadOnlyList<RelatedRecordRequest>? RelatedRecords { get; init; }
 }
 
+/// <summary>
+/// The most severe a caller may declare their own ticket to be.
+/// </summary>
+/// <remarks>
+/// Exists so the form can tell somebody the limit before they hit it, and can stop
+/// showing a priority the server is about to reduce. The cap is configurable, so the
+/// interface has to ask rather than assume a level.
+/// </remarks>
+public sealed record SeverityCeilingResponse
+{
+    public required string MaxImpact { get; init; }
+    public required string MaxUrgency { get; init; }
+
+    /// <summary>False for staff, who are believed and should see no warning at all.</summary>
+    public required bool AppliesToCaller { get; init; }
+}
+
 public sealed record RelatedRecordRequest
 {
     public required string RecordType { get; init; }

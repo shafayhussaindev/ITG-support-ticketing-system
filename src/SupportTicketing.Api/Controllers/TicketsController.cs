@@ -30,6 +30,17 @@ public sealed class TicketsController(IDispatcher dispatcher) : ControllerBase
     }
 
     /// <summary>Returns one ticket.</summary>
+    /// <summary>The most severe the caller may declare a ticket to be.</summary>
+    [HttpGet("severity-ceiling")]
+    [SwaggerOperation(Summary = "Severity ceiling", Description =
+        "What this caller may claim, so the form can say so before they submit rather "
+        + "than the server reducing it afterwards without explanation. Staff are "
+        + "believed and are told the cap does not apply to them.")]
+    [ProducesResponseType<SeverityCeilingResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<SeverityCeilingResponse>> SeverityCeiling(
+        CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetSeverityCeilingQuery(), cancellationToken));
+
     [HttpGet("{id:guid}")]
     [SwaggerOperation(Summary = "Get a ticket", Description =
         "Returns 404 rather than 403 for a ticket outside the caller's scope, so identifiers "

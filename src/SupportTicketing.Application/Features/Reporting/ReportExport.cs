@@ -42,8 +42,20 @@ public sealed class ExportReportCommandHandler(
 {
     private const int MaxTicketRows = 20_000;
 
+    /// <summary>
+    /// Every report the screen can show.
+    /// </summary>
+    /// <remarks>
+    /// Volume trend and customer behaviour were on screen with an Export button above
+    /// them and were missing from this list, so the button returned a validation error
+    /// naming reports the user could not see. A report that can be read should be
+    /// exportable; the two were added rather than the button hidden.
+    /// </remarks>
     private static readonly string[] KnownReports =
-        ["tickets", "sla-compliance", "agent-performance", "satisfaction"];
+    [
+        "tickets", "sla-compliance", "agent-performance", "satisfaction",
+        "volume-trend", "customer-behaviour",
+    ];
 
     public async Task<ExportedFile> HandleAsync(
         ExportReportCommand command, CancellationToken cancellationToken)
@@ -77,6 +89,8 @@ public sealed class ExportReportCommandHandler(
             "tickets" => await ExportTicketsAsync(parameters, cancellationToken),
             "sla-compliance" => await ExportSlaComplianceAsync(parameters, cancellationToken),
             "agent-performance" => await ExportAgentPerformanceAsync(parameters, cancellationToken),
+            "volume-trend" => await ExportVolumeTrendAsync(parameters, cancellationToken),
+            "customer-behaviour" => await ExportCustomerBehaviourAsync(parameters, cancellationToken),
             _ => await ExportSatisfactionAsync(parameters, cancellationToken),
         };
 
@@ -229,6 +243,56 @@ public sealed class ExportReportCommandHandler(
         }
 
         return (csv.Build(), report.ByAgent.Count);
+    }
+
+    private async Task<(string Csv, int Rows)> ExportVolumeTrendAsync(
+        ReportQueryParameters parameters, CancellationToken cancellationToken)
+    {
+        var report = await dispatcher.QueryAsync(
+            new GetVolumeTrendReportQuery(parameters), cancellationToken);
+
+        // The daily series only. The category, type and source breakdowns are three
+        // different shapes and stacking them into one file would produce something no
+        // spreadsheet can chart — they belong in the tickets export, where each row
+        // carries its own category anyway.
+        var csv = new CsvBuilder("Date", "Raised", "Resolved", "Reopened", "Backlog");
+
+        foreach (var day in report.Days)
+        {
+            csv.AddRow(
+                day.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                Number(day.Raised), Number(day.Resolved), Number(day.Reopened),
+                Number(day.Backlog));
+        }
+
+        return (csv.Build(), report.Days.Count);
+    }
+
+    private async Task<(string Csv, int Rows)> ExportCustomerBehaviourAsync(
+        ReportQueryParameters parameters, CancellationToken cancellationToken)
+    {
+        // The query enforces its own permission. This report names individuals and
+        // says unflattering things about them, so holding the general export permission
+        // must not be enough to walk away with a copy.
+        var report = await dispatcher.QueryAsync(
+            new GetCustomerBehaviourReportQuery(parameters), cancellationToken);
+
+        var csv = new CsvBuilder(
+            "Requester", "Email", "Department", "Tickets raised", "Over-claimed severity",
+            "High or critical", "Reopened", "Cancelled", "Awaiting their confirmation",
+            "Avg confirmation (hours)", "Satisfaction");
+
+        foreach (var r in report.Rows)
+        {
+            csv.AddRow(
+                r.RequesterName, r.RequesterEmail, r.Department,
+                Number(r.TicketsRaised), Number(r.OverClaimedSeverity),
+                Number(r.HighOrCritical), Number(r.Reopened), Number(r.Cancelled),
+                Number(r.AwaitingTheirConfirmation),
+                Number(r.AverageConfirmationHours), Number(r.AverageSatisfaction));
+        }
+
+        return (csv.Build(), report.Rows.Count);
     }
 
     private static string? Stamp(DateTime? value) =>

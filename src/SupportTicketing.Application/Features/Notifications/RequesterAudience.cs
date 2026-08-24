@@ -31,8 +31,8 @@ public interface IRequesterAudience
     Task AcknowledgeAsync(Ticket ticket, CancellationToken cancellationToken);
 
     /// <summary>Sends a reply on to the requester. Silently ignores an internal note.</summary>
-    Task RepliedAsync(Ticket ticket, CommentType commentType, string body, string authorName,
-        CancellationToken cancellationToken);
+    Task RepliedAsync(Ticket ticket, Guid commentId, CommentType commentType, string body,
+        string authorName, CancellationToken cancellationToken);
 
     Task ResolvedAsync(Ticket ticket, string? resolutionSummary, CancellationToken cancellationToken);
 
@@ -53,7 +53,7 @@ public sealed class RequesterAudience(INotificationService notifications, ICurre
             cancellationToken);
 
     public Task RepliedAsync(
-        Ticket ticket, CommentType commentType, string body, string authorName,
+        Ticket ticket, Guid commentId, CommentType commentType, string body, string authorName,
         CancellationToken cancellationToken)
     {
         // The guard that matters. Anything that is not a public reply stays inside.
@@ -67,8 +67,12 @@ public sealed class RequesterAudience(INotificationService notifications, ICurre
             NotificationEventType.TicketReplied,
             $"Reply on {ticket.TicketNumber}",
             $"{authorName} replied:\n\n{body}",
-            // Keyed on the comment, not the ticket, or only the first reply is ever sent.
-            $"requester-replied:{ticket.Id}:{body.GetHashCode()}",
+            // Keyed on the comment's identity. It was keyed on a hash of the body,
+            // which meant an agent who wrote "Any update on this?" twice notified the
+            // requester once — the second was swallowed as a duplicate of the first.
+            // A comment id is unique by definition and stable across restarts, which a
+            // string hash is not.
+            $"requester-replied:{commentId}",
             cancellationToken);
     }
 

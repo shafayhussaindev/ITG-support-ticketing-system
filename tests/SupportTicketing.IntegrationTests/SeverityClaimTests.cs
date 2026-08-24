@@ -175,4 +175,45 @@ public class SeverityClaimTests(ApiFactory factory)
         (await agent.GetAsync("/api/v1/reports/severity-claims"))
             .StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
+
+    /// <summary>
+    /// The ceiling the interface is told about is the ceiling the server enforces.
+    /// </summary>
+    /// <remarks>
+    /// The create form used to work this out for itself, hardcoding Critical as the
+    /// reserved level. It therefore displayed a calculated priority the server was about
+    /// to reduce — two different answers on one screen — and went silent altogether if
+    /// an administrator lowered the cap, which is the case the warning exists for.
+    /// </remarks>
+    [Fact]
+    public async Task The_advertised_ceiling_is_the_one_actually_applied()
+    {
+        var requester = await SignInAsync("requester@itg.test");
+
+        var ceiling = (await requester.GetFromJsonAsync<SeverityCeilingResponse>(
+            "/api/v1/tickets/severity-ceiling"))!;
+
+        ceiling.AppliesToCaller.ShouldBeTrue("a requester is capped");
+
+        // Ask for the most severe there is, and check what was stored matches what the
+        // caller was promised rather than merely being lower than requested.
+        var ticket = await RaiseAsync(
+            requester, "Critical", "Critical", "Claiming the maximum");
+
+        ticket.Impact.ShouldBe(ceiling.MaxImpact);
+        ticket.Urgency.ShouldBe(ceiling.MaxUrgency);
+    }
+
+    [Fact]
+    public async Task Staff_are_told_the_cap_does_not_apply_to_them()
+    {
+        var agent = await SignInAsync("agent@itg.test");
+
+        var ceiling = (await agent.GetFromJsonAsync<SeverityCeilingResponse>(
+            "/api/v1/tickets/severity-ceiling"))!;
+
+        // So the form shows them no warning at all. Somebody who is believed should not
+        // be told their claim will be reduced.
+        ceiling.AppliesToCaller.ShouldBeFalse();
+    }
 }
