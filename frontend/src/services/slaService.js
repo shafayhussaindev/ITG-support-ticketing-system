@@ -4,6 +4,13 @@ export const slaService = {
   /** Returns null when the ticket has no SLA policy attached (the API answers 204). */
   forTicket: (ticketId) => api.get(`/tickets/${ticketId}/sla`),
   escalations: (openOnly = true) => api.get(`/escalations?openOnly=${openOnly}`),
+
+  // Counted on the server: the listing is capped at 200 rows, so totalling it in the
+  // browser would under-report at exactly the moment the queue is worst.
+  escalationSummary: () => api.get('/escalations/summary'),
+
+  acknowledgeEscalation: (id, note) =>
+    api.post(`/escalations/${id}/acknowledge`, { note: note || null }),
 };
 
 export const notificationService = {
@@ -16,6 +23,7 @@ export const notificationService = {
 export const slaKeys = {
   ticket: (id) => ['sla', 'ticket', id],
   escalations: (openOnly) => ['sla', 'escalations', openOnly],
+  escalationSummary: () => ['sla', 'escalations', 'summary'],
 };
 
 export const notificationKeys = {

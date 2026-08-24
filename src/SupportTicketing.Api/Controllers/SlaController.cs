@@ -3,6 +3,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using SupportTicketing.Api.Security;
 using SupportTicketing.Application.Abstractions;
 using SupportTicketing.Application.Features.Notifications;
+using SupportTicketing.Application.Features.Escalations;
 using SupportTicketing.Application.Features.Sla;
 using SupportTicketing.Contracts.Notifications;
 using SupportTicketing.Contracts.Sla;
@@ -40,6 +41,38 @@ public sealed class SlaController(IDispatcher dispatcher) : ControllerBase
     public async Task<ActionResult<IReadOnlyList<EscalationResponse>>> Escalations(
         [FromQuery] bool openOnly = true, CancellationToken cancellationToken = default) =>
         Ok(await dispatcher.QueryAsync(new ListEscalationsQuery(openOnly), cancellationToken));
+
+    /// <summary>How the escalation queue as a whole is doing.</summary>
+    [HttpGet("escalations/summary")]
+    [HasPermission(Permissions.Escalations.View)]
+    [SwaggerOperation(Summary = "Escalation summary", Description =
+        "Counted on the server because the listing is capped at 200 rows, so counting "
+        + "in the browser would under-report at exactly the moment the queue is worst. "
+        + "Scoped to tickets the caller can see, like the listing itself.")]
+    [ProducesResponseType<EscalationSummaryResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<EscalationSummaryResponse>> EscalationSummary(
+        CancellationToken cancellationToken) =>
+        Ok(await dispatcher.QueryAsync(new GetEscalationSummaryQuery(), cancellationToken));
+
+    /// <summary>Records that somebody has seen an escalation and taken it on.</summary>
+    [HttpPost("escalations/{id:guid}/acknowledge")]
+    [HasPermission(Permissions.Escalations.Acknowledge)]
+    [SwaggerOperation(Summary = "Acknowledge an escalation", Description =
+        "Says \"I have seen this and I own it\". Deliberately does not resolve it — the "
+        + "ticket being fixed is what does that, and conflating the two would let "
+        + "somebody clear the board without doing the work. Acknowledging one that is "
+        + "already dealt with reports success and changes nothing, rather than "
+        + "overwriting whoever actually picked it up.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AcknowledgeEscalation(
+        Guid id, [FromBody] AcknowledgeEscalationRequest request,
+        CancellationToken cancellationToken)
+    {
+        await dispatcher.SendAsync(new AcknowledgeEscalationCommand(id, request), cancellationToken);
+        return NoContent();
+    }
 }
 
 [ApiController]

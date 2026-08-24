@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { slaKeys, slaService } from '@/services/slaService';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { Badge, Button, Card, EmptyState, ErrorState, Skeleton } from '@/components/ui';
 import { PriorityBadge } from '@/components/ui/TicketBadges';
 import { formatDateTime, formatRelative } from '@/utils/datetime';
@@ -16,12 +18,36 @@ const STATE_TONE = {
 };
 
 export function EscalationsPage() {
+  const { can } = useAuth();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
   const [openOnly, setOpenOnly] = useState(true);
 
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: slaKeys.escalations(openOnly),
     queryFn: () => slaService.escalations(openOnly),
     refetchInterval: 60_000,
+  });
+
+  // The oversight view. An administrator opening this screen is asking whether the desk
+  // is keeping up, which a flat list of two hundred rows does not answer.
+  const { data: summary } = useQuery({
+    queryKey: slaKeys.escalationSummary(),
+    queryFn: slaService.escalationSummary,
+    refetchInterval: 60_000,
+  });
+
+  const mayAcknowledge = can('escalation.acknowledge');
+
+  const acknowledge = useMutation({
+    mutationFn: (id) => slaService.acknowledgeEscalation(id),
+    onSuccess: () => {
+      // Both: the row changes state and the counts above it move with it.
+      queryClient.invalidateQueries({ queryKey: ['sla', 'escalations'] });
+      toast.success('Escalation acknowledged');
+    },
+    onError: (err) => toast.error('Could not acknowledge that', err.detail),
   });
 
   return (
@@ -44,6 +70,50 @@ export function EscalationsPage() {
           Unacknowledged only
         </label>
       </header>
+
+      {summary ? (
+        <div className={s.summary}>
+          <div className={s.stat}>
+            <span className={s.statValue} data-tone={summary.unacknowledged > 0 ? 'danger' : 'calm'}>
+              {summary.unacknowledged}
+            </span>
+            <span className={s.statLabel}>waiting for someone</span>
+          </div>
+
+          <div className={s.stat}>
+            <span className={s.statValue}>{summary.acknowledged}</span>
+            <span className={s.statLabel}>owned, still open</span>
+          </div>
+
+          <div className={s.stat}>
+            <span className={s.statValue} data-tone={summary.beyondFirstLevel > 0 ? 'warn' : 'calm'}>
+              {summary.beyondFirstLevel}
+            </span>
+            <span className={s.statLabel}>past the first rung</span>
+          </div>
+
+          <div className={s.stat}>
+            {/* The number that says whether anyone is actually watching. An hours
+                figure here is worth more than a count, because a queue of three that
+                nobody has touched in two days is worse than a queue of twenty. */}
+            <span className={s.statValue} data-tone={
+              summary.oldestUnacknowledgedHours === null ? 'calm'
+                : summary.oldestUnacknowledgedHours >= 24 ? 'danger'
+                  : summary.oldestUnacknowledgedHours >= 4 ? 'warn' : 'calm'
+            }>
+              {summary.oldestUnacknowledgedHours === null
+                ? '—'
+                : `${summary.oldestUnacknowledgedHours} h`}
+            </span>
+            <span className={s.statLabel}>oldest unacknowledged</span>
+          </div>
+
+          <div className={s.stat}>
+            <span className={s.statValue}>{summary.settledLastWeek}</span>
+            <span className={s.statLabel}>settled this week</span>
+          </div>
+        </div>
+      ) : null}
 
       <Card className={s.card}>
         {isPending ? (
@@ -82,6 +152,7 @@ export function EscalationsPage() {
                   <th scope="col">Notified</th>
                   <th scope="col">State</th>
                   <th scope="col">Raised</th>
+                  {mayAcknowledge ? <th scope="col">Action</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -119,6 +190,29 @@ export function EscalationsPage() {
                     <td className={s.muted} title={formatDateTime(escalation.raisedAtUtc)}>
                       {formatRelative(escalation.raisedAtUtc)}
                     </td>
+
+                    {mayAcknowledge ? (
+                      <td>
+                        {escalation.state === 'Raised' || escalation.state === 'Notified' ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={acknowledge.isPending}
+                            onClick={() => acknowledge.mutate(escalation.id)}
+                          >
+                            Acknowledge
+                          </Button>
+                        ) : escalation.acknowledgedByName ? (
+                          // Who took it on, not just that somebody did. On a shared
+                          // queue the name is the whole point.
+                          <span className={s.muted} title={formatDateTime(escalation.acknowledgedAtUtc)}>
+                            {escalation.acknowledgedByName}
+                          </span>
+                        ) : (
+                          <span className={s.muted}>—</span>
+                        )}
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>

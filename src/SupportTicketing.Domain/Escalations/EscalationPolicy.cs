@@ -76,12 +76,27 @@ public enum EscalationRecipient
 /// An escalation that actually fired.
 /// </summary>
 /// <remarks>
-/// Append-only, and unique per ticket and level, so a re-run of the background worker
-/// cannot escalate the same ticket to the same rung twice. A missing recipient is
-/// recorded rather than swallowed: an escalation nobody received is a fact worth
-/// keeping, not a silent no-op.
+/// <para>
+/// Unique per ticket and level, so a re-run of the background worker cannot escalate
+/// the same ticket to the same rung twice. A missing recipient is recorded rather than
+/// swallowed: an escalation nobody received is a fact worth keeping, not a silent no-op.
+/// </para>
+/// <para>
+/// Deliberately <em>not</em> <c>IAppendOnly</c>, despite the name. This is a state
+/// machine, not a log: it carries a <see cref="State"/> with five values and three
+/// lifecycle timestamps that only later events can fill in, and the unique index on
+/// ticket and level forbids appending a second row for the same rung. The marker was
+/// here and contradicted all of that, which is why every escalation ever raised sat at
+/// <see cref="EscalationState.Raised"/> for ever and three of the five states were
+/// unreachable.
+/// </para>
+/// <para>
+/// What the marker was protecting is not lost. Each state change writes an audit row,
+/// so who acknowledged an escalation and when is still recoverable from a record that
+/// genuinely is append-only.
+/// </para>
 /// </remarks>
-public class EscalationHistory : Entity, IAppendOnly, ITenantOwned
+public class EscalationHistory : Entity, ITenantOwned
 {
     public Guid OrganizationId { get; set; }
 

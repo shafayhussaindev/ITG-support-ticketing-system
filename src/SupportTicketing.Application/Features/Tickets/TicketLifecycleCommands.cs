@@ -5,6 +5,7 @@ using SupportTicketing.Contracts.Tickets;
 using SupportTicketing.Domain.Common;
 using SupportTicketing.Domain.Enums;
 using SupportTicketing.Domain.Identity;
+using SupportTicketing.Application.Features.Escalations;
 using SupportTicketing.Application.Features.Sla;
 using SupportTicketing.Domain.Tickets;
 using SupportTicketing.Application.Features.Notifications;
@@ -290,7 +291,8 @@ public sealed class ChangeTicketStatusCommandValidator : AbstractValidator<Chang
 }
 
 public sealed class ChangeTicketStatusCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine, IAuditWriter audit, IClock clock)
+    IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine,
+    IEscalationLedger escalations, IAuditWriter audit, IClock clock)
     : ICommandHandler<ChangeTicketStatusCommand, TicketDetailResponse>
 {
     public async Task<TicketDetailResponse> HandleAsync(
@@ -335,6 +337,12 @@ public sealed class ChangeTicketStatusCommandHandler(
         if (target == TicketStatus.Cancelled)
         {
             await slaEngine.CancelAsync(ticket, command.Request.Reason ?? "Ticket cancelled.", cancellationToken);
+
+            // A cancelled ticket is not late; it is not happening. Leaving its
+            // escalations open would report a missed deadline nobody owes.
+            await escalations.SettleAsync(
+                ticket, EscalationState.Cancelled,
+                command.Request.Reason ?? "Ticket cancelled.", cancellationToken);
         }
         else
         {
@@ -473,6 +481,7 @@ public sealed class ResolveTicketCommandValidator : AbstractValidator<ResolveTic
 
 public sealed class ResolveTicketCommandHandler(
     IAppDbContext db, ICurrentUser currentUser, ISlaEngine slaEngine,
+    IEscalationLedger escalations,
     IRequesterAudience requesterAudience, IAuditWriter audit, IClock clock)
     : ICommandHandler<ResolveTicketCommand, TicketDetailResponse>
 {
@@ -508,6 +517,12 @@ public sealed class ResolveTicketCommandHandler(
 
         await slaEngine.RecordFirstResponseAsync(ticket, now, cancellationToken);
         await slaEngine.RecordResolvedAsync(ticket, now, cancellationToken);
+
+        // The escalation existed to get this ticket looked at. It has been, so it stops
+        // being open work — otherwise the queue fills with tickets that are already
+        // fixed and the count above it stops meaning anything.
+        await escalations.SettleAsync(
+            ticket, EscalationState.Resolved, "Ticket resolved.", cancellationToken);
 
         await audit.WriteAsync(
             AuditAction.StatusChanged, nameof(Ticket), ticket.Id, ticket.TicketNumber,

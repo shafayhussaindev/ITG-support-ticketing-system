@@ -30,6 +30,7 @@ public static class DependencyInjection
         // Application abstractions, so they live here rather than in Infrastructure.
         services.AddScoped<ISlaEventRecorder, SlaEventRecorder>();
         services.AddScoped<ISlaEngine, SlaEngine>();
+        services.AddScoped<IEscalationLedger, EscalationLedger>();
         services.AddScoped<IPriorityMatrixResolver, PriorityMatrixResolver>();
         services.AddScoped<ISeverityPolicy, SeverityPolicy>();
         services.AddScoped<ISlaAudience, SlaAudience>();

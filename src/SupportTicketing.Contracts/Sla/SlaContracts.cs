@@ -45,6 +45,41 @@ public sealed record SlaEventResponse
     public required string Source { get; init; }
 }
 
+public sealed record AcknowledgeEscalationRequest
+{
+    /// <summary>Optional: what you are doing about it, kept alongside why it was raised.</summary>
+    public string? Note { get; init; }
+}
+
+/// <summary>
+/// The state of the escalation queue as a whole.
+/// </summary>
+/// <remarks>
+/// Counted on the server rather than derived from the listing, because the listing is
+/// capped at 200 rows. Counting in the browser would under-report at exactly the moment
+/// the queue is worst, which is the one moment the number matters.
+/// </remarks>
+public sealed record EscalationSummaryResponse
+{
+    /// <summary>Raised or notified: nobody has picked these up.</summary>
+    public required int Unacknowledged { get; init; }
+
+    /// <summary>Somebody owns it, but the ticket is still not fixed.</summary>
+    public required int Acknowledged { get; init; }
+
+    /// <summary>Everything still open, whether or not anyone has taken it on.</summary>
+    public required int Open { get; init; }
+
+    /// <summary>Age in hours of the longest-standing unacknowledged escalation.</summary>
+    public double? OldestUnacknowledgedHours { get; init; }
+
+    /// <summary>Open escalations that have gone past the first rung.</summary>
+    public required int BeyondFirstLevel { get; init; }
+
+    /// <summary>Settled in the last seven days, as the counterweight to the backlog.</summary>
+    public required int SettledLastWeek { get; init; }
+}
+
 public sealed record EscalationResponse
 {
     public required Guid Id { get; init; }

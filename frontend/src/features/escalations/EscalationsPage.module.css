@@ -102,3 +102,41 @@
   color: var(--c-warning-text);
   font-weight: 600;
 }
+
+/* The oversight strip. Five figures rather than a chart: somebody checking whether the
+   desk is keeping up wants to read the answer, not interpret it. */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface-1);
+}
+
+.statValue {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--c-text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Colour carries no information on its own — the label beside every figure says what
+   it is, so a reader who cannot separate red from amber loses nothing. */
+.statValue[data-tone='danger'] { color: var(--c-danger-text); }
+.statValue[data-tone='warn'] { color: var(--c-warning-text); }
+
+.statLabel {
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+  line-height: 1.3;
+}
