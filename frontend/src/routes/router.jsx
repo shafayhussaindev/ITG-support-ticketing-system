@@ -78,6 +78,10 @@ const ArticlePage = lazy(() =>
   import('@/features/knowledge/ArticlePage').then((m) => ({ default: m.ArticlePage })),
 );
 
+const WorkloadPage = lazy(() =>
+  import('@/features/admin/WorkloadPage').then((m) => ({ default: m.WorkloadPage })),
+);
+
 const ArticleEditorPage = lazy(() =>
   import('@/features/knowledge/ArticleEditorPage').then((m) => ({ default: m.ArticleEditorPage })),
 );
@@ -144,6 +148,14 @@ export const router = createBrowserRouter([
         path: 'knowledge/:id/edit',
         element: (
           <ProtectedRoute permission="knowledge.edit">{lazyRoute(<ArticleEditorPage />)}</ProtectedRoute>
+        ),
+      },
+      {
+        // Two permissions reach this and the rows differ by which, so the guard is the
+        // looser of the pair and the handler narrows what comes back.
+        path: 'admin/workload',
+        element: (
+          <ProtectedRoute permission="reports.view_team">{lazyRoute(<WorkloadPage />)}</ProtectedRoute>
         ),
       },
       {

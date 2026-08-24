@@ -231,3 +231,27 @@
 @media (max-width: 640px) {
   .headerControls { width: 100%; }
 }
+
+/* The email under a person's name: present for identification, never competing with it. */
+.subtle {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--c-text-3);
+  font-weight: 400;
+}
+
+/* Explains what a column counts. A number nobody can interpret is worse than no column. */
+.footnote {
+  margin: var(--s-3) 0 0;
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--c-text-3);
+}
+
+/* A count and its badge are two facts, not one number. */
+.countWithBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}

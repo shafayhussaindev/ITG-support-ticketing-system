@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/services/apiClient';
 import { ticketKeys, ticketService } from '@/services/ticketService';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Button, Card, CardBody, CardHeader, Field } from '@/components/ui';
 import { PriorityBadge } from '@/components/ui/TicketBadges';
@@ -58,6 +59,7 @@ const URGENCY_HELP = {
 export function CreateTicketPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { can } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: categories = [] } = useQuery({
@@ -133,6 +135,10 @@ export function CreateTicketPage() {
       toast.error('Could not raise the ticket', error.detail ?? 'Please try again.');
     },
   });
+
+  // Staff are believed; only a requester is capped. Showing the warning to somebody it
+  // does not apply to would be worse than not showing it at all.
+  const capped = !can('ticket.claim_any_severity');
 
   const preview = previewPriority(impact, urgency);
 
@@ -312,6 +318,18 @@ export function CreateTicketPage() {
                   Worked out from impact and urgency using your organization's matrix.
                   It cannot be set by hand here — support can adjust it later with a reason.
                 </p>
+
+                {/* Said before they submit rather than discovered afterwards. A
+                    requester whose Critical silently became High concludes the system
+                    ignored them; one who was told the ceiling knows a person will
+                    look. Only shown to people the cap applies to. */}
+                {capped && (impact === 'Critical' || urgency === 'Critical') ? (
+                  <p className={s.previewCap}>
+                    Critical is reserved for support to set. This will be logged as{' '}
+                    <strong>High</strong> with what you asked for recorded alongside it,
+                    and a team lead can raise it once they have looked.
+                  </p>
+                ) : null}
               </div>
             </CardBody>
           </Card>

@@ -17,6 +17,10 @@ const REPORTS = [
   { key: 'volume-trend', label: 'Volume and backlog' },
   { key: 'agent-performance', label: 'Agent performance' },
   { key: 'satisfaction', label: 'Satisfaction' },
+
+  // Super Admin alone by default: every other report describes the desk, this one
+  // describes people, so the tab is hidden rather than shown and refused.
+  { key: 'customer-behaviour', label: 'Customer behaviour', permission: 'reports.customer_behaviour' },
 ];
 
 const PERIODS = [
@@ -429,6 +433,127 @@ function SatisfactionReport({ data }) {
   );
 }
 
+/**
+ * Named requesters, ranked by how they use the desk.
+ *
+ * <p>Every count is shown against the desk's own average, because there is no universal
+ * number for "too many tickets" — eleven means nothing until you know the average is
+ * three. The averages are what make the rows readable at all.</p>
+ *
+ * <p>Framed as a prompt for a conversation rather than a verdict, and the page says so.
+ * A high figure usually means somebody has been handed a system that keeps failing them,
+ * or that nobody explained what the impact scale means.</p>
+ */
+function CustomerBehaviourReport({ data }) {
+  if (data.rows.length === 0) {
+    return (
+      <Card>
+        <CardBody>
+          <EmptyState
+            icon="◍"
+            title="Nobody raised a ticket in this period"
+            message="Widen the period, or come back once the desk has been used."
+          />
+        </CardBody>
+      </Card>
+    );
+  }
+
+  const average = data.averageTicketsPerRequester;
+
+  return (
+    <>
+      <div className={s.summary}>
+        <Card>
+          <CardBody className={s.summaryBody}>
+            <span className={s.summaryValue}>{average}</span>
+            <span className={s.summaryLabel}>Tickets per requester, on average</span>
+            <span className={s.summaryHint}>
+              {data.requesters} {data.requesters === 1 ? 'person' : 'people'} raised{' '}
+              {data.ticketsRaised.toLocaleString()} tickets. Read every row against this
+              number: a count on its own says nothing about whether it is unusual.
+            </span>
+          </CardBody>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader
+          title="By requester"
+          subtitle="Busiest first. A prompt for a conversation, not a verdict."
+        />
+        <CardBody>
+          <div className={s.tableWrap}>
+            <table className={s.table}>
+              <thead>
+                <tr>
+                  <th scope="col">Requester</th>
+                  <th scope="col">Raised</th>
+                  <th scope="col">Over-claimed</th>
+                  <th scope="col">Reopened</th>
+                  <th scope="col">Cancelled</th>
+                  <th scope="col">High or Critical</th>
+                  <th scope="col">Awaiting them</th>
+                  <th scope="col">Confirms in</th>
+                  <th scope="col">Rates us</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.map((row) => (
+                  <tr key={row.requesterId}>
+                    <th scope="row">
+                      {row.requesterName}
+                      <span className={s.subtle}>{row.requesterEmail}</span>
+                    </th>
+                    <td>
+                      {/* Spaced deliberately: the count and the badge ran together as
+                          "132× average" when adjacent, which reads as one number. */}
+                      <span className={s.countWithBadge}>
+                        <strong>{row.ticketsRaised}</strong>
+                        {row.ticketsRaised >= average * 2 ? (
+                          <Badge tone="warning">
+                            {Math.round(row.ticketsRaised / average)}× average
+                          </Badge>
+                        ) : null}
+                      </span>
+                    </td>
+                    <td className={row.overClaimedSeverity > 0 ? undefined : s.muted}>
+                      {row.overClaimedSeverity || '—'}
+                    </td>
+                    <td className={row.reopened > 0 ? undefined : s.muted}>{row.reopened || '—'}</td>
+                    <td className={row.cancelled > 0 ? undefined : s.muted}>{row.cancelled || '—'}</td>
+                    <td>{row.highOrCritical}</td>
+                    <td className={row.awaitingTheirConfirmation > 0 ? undefined : s.muted}>
+                      {row.awaitingTheirConfirmation || '—'}
+                    </td>
+                    <td className={s.muted}>
+                      {row.averageConfirmationHours === null
+                        ? '—'
+                        : `${row.averageConfirmationHours} h`}
+                    </td>
+                    <td className={s.muted}>
+                      {row.averageSatisfaction === null ? '—' : `${row.averageSatisfaction} / 5`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className={s.footnote}>
+            <strong>Over-claimed</strong> counts tickets where somebody asked for more
+            severity than they may declare and the cap reduced it.{' '}
+            <strong>Reopened</strong> counts tickets, not reopenings — one ticket reopened
+            four times is one unresolved problem, not four.{' '}
+            <strong>Awaiting them</strong> is work finished and waiting on the requester
+            to confirm, which is often why a ticket looks stuck.
+          </p>
+        </CardBody>
+      </Card>
+    </>
+  );
+}
+
 export function ReportsPage() {
   const { can } = useAuth();
   const toast = useToast();
@@ -460,6 +585,11 @@ export function ReportsPage() {
       fn: () => reportsService.satisfaction(filters),
       render: (data) => <SatisfactionReport data={data} />,
     },
+    'customer-behaviour': {
+      key: reportKeys.customerBehaviour(filters),
+      fn: () => reportsService.customerBehaviour(filters),
+      render: (data) => <CustomerBehaviourReport data={data} />,
+    },
   };
 
   const active = queries[report];
@@ -489,7 +619,7 @@ export function ReportsPage() {
         <div>
           <h2 className={s.title}>Reports</h2>
           <p className={s.subtitle}>
-            {data
+            {data?.period
               ? <>Covering <strong>{SCOPE_LABEL[data.period.scope] ?? 'what you can see'}</strong>
                   {' '}— {data.period.ticketsInScope.toLocaleString()} tickets over{' '}
                   {data.period.days} days.</>
@@ -527,7 +657,7 @@ export function ReportsPage() {
       </header>
 
       <div className={s.tabs} role="tablist" aria-label="Reports">
-        {REPORTS.map((item) => (
+        {REPORTS.filter((item) => !item.permission || can(item.permission)).map((item) => (
           <button
             key={item.key}
             type="button"

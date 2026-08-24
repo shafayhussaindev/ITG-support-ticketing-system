@@ -52,6 +52,7 @@ export const navigation = [
     label: 'Administration',
     items: [
       { to: '/admin/users', icon: '◐', label: 'Users', permission: 'users.manage', available: true },
+      { to: '/admin/workload', icon: '◉', label: 'Staff workload', permission: 'reports.view_team', available: true },
       { to: '/admin/roles', icon: '◑', label: 'Roles & permissions', permission: 'roles.manage', available: true },
       { to: '/admin/teams', icon: '◒', label: 'Teams', permission: 'teams.manage', available: true },
       { to: '/admin/catalog', icon: '◓', label: 'Categories', permission: 'catalog.manage', available: true },

@@ -15,6 +15,7 @@ function query(params = {}) {
 
 export const adminService = {
   reference: () => api.get('/admin/reference'),
+  workload: () => api.get('/admin/workload'),
 
   users: {
     list: (params) => api.get(`/admin/users?${query(params)}`),
@@ -84,6 +85,7 @@ export const adminService = {
 
 export const adminKeys = {
   reference: () => ['admin', 'reference'],
+  workload: () => ['admin', 'workload'],
   users: (params) => ['admin', 'users', params],
   user: (id) => ['admin', 'user', id],
   roles: () => ['admin', 'roles'],

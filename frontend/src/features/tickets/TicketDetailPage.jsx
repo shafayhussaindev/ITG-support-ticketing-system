@@ -242,6 +242,20 @@ export function TicketDetailPage() {
                       Calculated from {ticket.impact} impact and {ticket.urgency} urgency.
                     </p>
                   )}
+
+                  {/* Without this the reduction is invisible and reads as the system
+                      ignoring what the requester said. Naming the original, and saying
+                      it can still be raised, is the difference between a rule and a
+                      snub. */}
+                  {ticket.claimedImpact || ticket.claimedUrgency ? (
+                    <p className={s.claim}>
+                      Asked for{' '}
+                      <strong>{ticket.claimedImpact ?? ticket.impact} impact</strong> and{' '}
+                      <strong>{ticket.claimedUrgency ?? ticket.urgency} urgency</strong>,
+                      which is above what a requester may declare, so it was reduced.
+                      A team lead can raise it if that was right.
+                    </p>
+                  ) : null}
                 </dd>
 
                 <dt>Assigned to</dt>

@@ -158,3 +158,14 @@
 @media (max-width: 980px) {
   .grid { grid-template-columns: 1fr; }
 }
+
+/* Contradicts the badge immediately above it, so it must not read as more grey prose. */
+.previewCap {
+  margin: var(--s-2) 0 0;
+  padding: var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-warning-soft, var(--c-surface-3));
+  color: var(--c-warning-text, var(--c-text-2));
+  font-size: var(--fs-xs);
+  line-height: 1.55;
+}

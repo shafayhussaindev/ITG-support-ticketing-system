@@ -18,6 +18,7 @@ export const reportsService = {
   agentPerformance: (filters) => api.get(`/reports/agent-performance?${toQuery(filters)}`),
   volumeTrend: (filters) => api.get(`/reports/volume-trend?${toQuery(filters)}`),
   satisfaction: (filters) => api.get(`/reports/satisfaction?${toQuery(filters)}`),
+  customerBehaviour: (filters) => api.get(`/reports/customer-behaviour?${toQuery(filters)}`),
   export: (report, filters = {}) => api.download('/reports/export', { report, ...filters }),
 };
 
@@ -42,6 +43,7 @@ export const reportKeys = {
   agents: (filters) => ['reports', 'agent-performance', filters],
   volume: (filters) => ['reports', 'volume-trend', filters],
   satisfaction: (filters) => ['reports', 'satisfaction', filters],
+  customerBehaviour: (filters) => ['reports', 'customer-behaviour', filters],
 };
 
 export const auditKeys = {
