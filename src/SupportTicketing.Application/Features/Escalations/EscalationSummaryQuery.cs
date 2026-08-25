@@ -15,7 +15,7 @@ public sealed record GetEscalationSummaryQuery : IQuery<EscalationSummaryRespons
 /// <remarks>
 /// <para>
 /// An administrator or super admin opening this screen is asking a different question
-/// from the agent who owns one of the tickets. They want to know whether the desk is
+/// from the staff member who owns one of the tickets. They want to know whether the desk is
 /// keeping up, and a flat list of two hundred rows does not answer that.
 /// </para>
 /// <para>

@@ -57,7 +57,7 @@ public enum TeamRole
     Observer = 4
 }
 
-/// <summary>A capability an agent can hold, used by skill-based routing.</summary>
+/// <summary>A capability a staff member can hold, used by skill-based routing.</summary>
 public class Skill : TenantEntity
 {
     public required string Name { get; set; }

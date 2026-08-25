@@ -32,7 +32,7 @@ export function TicketListPage() {
       priority: searchParams.get('priority') ?? '',
       openOnly: searchParams.get('openOnly') === 'true' ? true : undefined,
       unassigned: searchParams.get('unassigned') === 'true' ? true : undefined,
-      assignedAgentId: searchParams.get('mine') === 'true' ? user?.id : undefined,
+      assignedStaffId: searchParams.get('mine') === 'true' ? user?.id : undefined,
       sortBy: searchParams.get('sortBy') ?? 'created',
       sortDescending: searchParams.get('sortDescending') !== 'false',
     }),
@@ -252,7 +252,7 @@ export function TicketListPage() {
                       <td><PriorityBadge priority={ticket.priority} /></td>
                       <td className={s.person}>{ticket.requesterName}</td>
                       <td className={s.person}>
-                        {ticket.assignedAgentName ?? (
+                        {ticket.assignedStaffName ?? (
                           <span className={s.unassigned}>Unassigned</span>
                         )}
                       </td>

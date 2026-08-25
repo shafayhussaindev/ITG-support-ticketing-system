@@ -37,7 +37,7 @@ public sealed record ApplicationModuleResponse
     public required string Code { get; init; }
 }
 
-public sealed record AssignableAgentResponse
+public sealed record AssignableStaffResponse
 {
     public required Guid Id { get; init; }
     public required string FullName { get; init; }

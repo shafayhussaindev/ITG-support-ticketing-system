@@ -158,7 +158,7 @@ public static class TicketWorkflow
                     "A resolution summary is required before a ticket can be resolved. "
                     + "It is what the requester reads to decide whether to confirm.");
 
-            case TicketStatus.Assigned when ticket.AssignedAgentId is null && ticket.AssignedTeamId is null:
+            case TicketStatus.Assigned when ticket.AssignedStaffId is null && ticket.AssignedTeamId is null:
                 throw new BusinessRuleException(
                     "ticket.assignee_required",
                     "A ticket cannot be marked assigned without an owning team or agent.");

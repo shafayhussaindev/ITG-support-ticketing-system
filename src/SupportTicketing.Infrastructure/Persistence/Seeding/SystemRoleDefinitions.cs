@@ -8,8 +8,8 @@ namespace SupportTicketing.Infrastructure.Persistence.Seeding;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Shared by the demo seeder and the production bootstrapper. Two copies of "what a
-/// Support Agent may do" would drift the first time somebody adjusted one of them,
+/// Shared by the demo seeder and the production bootstrapper. Two copies of "what
+/// Staff may do" would drift the first time somebody adjusted one of them,
 /// and the deployment that got the stale copy would be the production one.
 /// </para>
 /// <para>
@@ -23,7 +23,7 @@ public static class SystemRoleDefinitions
     public static IReadOnlyList<(string Name, DataScope Scope, int Rank)> Roles { get; } =
     [
         (RoleNames.Requester, DataScope.Own, 10),
-        (RoleNames.SupportAgent, DataScope.Team, 20),
+        (RoleNames.Staff, DataScope.Team, 20),
         (RoleNames.TechnicalSpecialist, DataScope.Team, 30),
         (RoleNames.TeamLead, DataScope.Team, 40),
         (RoleNames.Manager, DataScope.Organization, 50),
@@ -35,8 +35,8 @@ public static class SystemRoleDefinitions
     /// The permission keys each role starts with.
     /// </summary>
     /// <remarks>
-    /// Cumulative where that reflects reality — an agent can do everything a requester
-    /// can, because agents raise tickets too — and deliberately not cumulative for the
+    /// Cumulative where that reflects reality — a staff member can do everything a requester
+    /// can, because staff raise tickets too — and deliberately not cumulative for the
     /// Administrator, who configures the system rather than working its queues. That is
     /// why an Administrator holds <c>users.manage</c> but only <c>ticket.view_own</c>.
     /// </remarks>
@@ -99,7 +99,7 @@ public static class SystemRoleDefinitions
         return new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
         {
             [RoleNames.Requester] = requester,
-            [RoleNames.SupportAgent] = agent,
+            [RoleNames.Staff] = agent,
             [RoleNames.TechnicalSpecialist] = specialist,
             [RoleNames.TeamLead] = lead,
             [RoleNames.Manager] = manager,

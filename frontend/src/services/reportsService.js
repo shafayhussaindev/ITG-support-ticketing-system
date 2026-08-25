@@ -1,21 +1,21 @@
 import { api } from './apiClient';
 
 /** Serialises the shared report filters, omitting anything unset. */
-function toQuery({ fromUtc, toUtc, teamId, categoryId, agentId } = {}) {
+function toQuery({ fromUtc, toUtc, teamId, categoryId, staffId } = {}) {
   const params = new URLSearchParams();
 
   if (fromUtc) params.set('fromUtc', fromUtc);
   if (toUtc) params.set('toUtc', toUtc);
   if (teamId) params.set('teamId', teamId);
   if (categoryId) params.set('categoryId', categoryId);
-  if (agentId) params.set('agentId', agentId);
+  if (staffId) params.set('staffId', staffId);
 
   return params.toString();
 }
 
 export const reportsService = {
   slaCompliance: (filters) => api.get(`/reports/sla-compliance?${toQuery(filters)}`),
-  agentPerformance: (filters) => api.get(`/reports/agent-performance?${toQuery(filters)}`),
+  staffPerformance: (filters) => api.get(`/reports/staff-performance?${toQuery(filters)}`),
   volumeTrend: (filters) => api.get(`/reports/volume-trend?${toQuery(filters)}`),
   satisfaction: (filters) => api.get(`/reports/satisfaction?${toQuery(filters)}`),
   customerBehaviour: (filters) => api.get(`/reports/customer-behaviour?${toQuery(filters)}`),
@@ -40,7 +40,7 @@ export const auditService = {
 
 export const reportKeys = {
   sla: (filters) => ['reports', 'sla-compliance', filters],
-  agents: (filters) => ['reports', 'agent-performance', filters],
+  staff: (filters) => ['reports', 'staff-performance', filters],
   volume: (filters) => ['reports', 'volume-trend', filters],
   satisfaction: (filters) => ['reports', 'satisfaction', filters],
   customerBehaviour: (filters) => ['reports', 'customer-behaviour', filters],

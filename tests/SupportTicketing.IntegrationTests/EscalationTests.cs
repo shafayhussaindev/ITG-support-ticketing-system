@@ -164,7 +164,7 @@ public class EscalationTests(ApiFactory factory)
 
         var (escalationId, _) = await PlantAsync(requester, "Seeing is not the same as owning");
 
-        // An agent can see the queue. Taking an escalation on is a different act, and
+        // A staff member can see the queue. Taking an escalation on is a different act, and
         // the role does not carry it.
         (await agent.PostAsJsonAsync($"/api/v1/escalations/{escalationId}/acknowledge",
             new AcknowledgeEscalationRequest()))
@@ -180,10 +180,10 @@ public class EscalationTests(ApiFactory factory)
 
         var (escalationId, ticketId) = await PlantAsync(requester, "Fixing it should clear the escalation");
 
-        var agentId = (await agent.GetFromJsonAsync<CurrentUserResponse>("/api/v1/auth/me"))!.Id;
+        var staffId = (await agent.GetFromJsonAsync<CurrentUserResponse>("/api/v1/auth/me"))!.Id;
 
         await lead.PostAsJsonAsync($"/api/v1/tickets/{ticketId}/assign",
-            new Contracts.Tickets.AssignTicketRequest { AgentId = agentId, Reason = "Working it." });
+            new Contracts.Tickets.AssignTicketRequest { StaffId = staffId, Reason = "Working it." });
         await agent.PostAsJsonAsync($"/api/v1/tickets/{ticketId}/accept", new { });
 
         var resolved = await agent.PostAsJsonAsync($"/api/v1/tickets/{ticketId}/resolve",

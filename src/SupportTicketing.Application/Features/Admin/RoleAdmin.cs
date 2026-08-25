@@ -237,7 +237,7 @@ public sealed record SetRolePermissionsCommand(Guid Id, SetRolePermissionsReques
 /// <remarks>
 /// <para>
 /// Permitted on system roles too. The seeded roles are a starting point, not a
-/// contract — an organization that wants its agents to change priority should be able
+/// contract — an organization that wants its staff to change priority should be able
 /// to say so without a deployment. What system roles cannot do is be renamed or
 /// deleted, because code and seed data refer to them by name.
 /// </para>

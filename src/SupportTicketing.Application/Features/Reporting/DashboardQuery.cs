@@ -74,7 +74,7 @@ public sealed class GetDashboardQueryHandler(IAppDbContext db, ICurrentUser curr
             ByStatus = byStatus,
             ByPriority = byPriority,
             ByCategory = byCategory,
-            AgentWorkload = workload,
+            StaffWorkload = workload,
         };
     }
 
@@ -85,7 +85,7 @@ public sealed class GetDashboardQueryHandler(IAppDbContext db, ICurrentUser curr
         var totalOpen = await open.CountAsync(cancellationToken);
         var newToday = await visible.CountAsync(t => t.CreatedAtUtc >= today, cancellationToken);
         var criticalOpen = await open.CountAsync(t => t.Priority == PriorityLevel.Critical, cancellationToken);
-        var unassigned = await open.CountAsync(t => t.AssignedAgentId == null, cancellationToken);
+        var unassigned = await open.CountAsync(t => t.AssignedStaffId == null, cancellationToken);
         var resolvedToday = await visible.CountAsync(t => t.ResolvedAtUtc >= today, cancellationToken);
         var reopened = await visible.CountAsync(t => t.ReopenCount > 0, cancellationToken);
 
@@ -272,7 +272,7 @@ public sealed class GetDashboardQueryHandler(IAppDbContext db, ICurrentUser curr
             .ToList();
     }
 
-    private async Task<IReadOnlyList<AgentWorkload>> BuildWorkloadAsync(
+    private async Task<IReadOnlyList<StaffWorkload>> BuildWorkloadAsync(
         IQueryable<Ticket> open, CancellationToken cancellationToken)
     {
         var breachedTicketIds = db.TicketSlaInstances
@@ -281,15 +281,15 @@ public sealed class GetDashboardQueryHandler(IAppDbContext db, ICurrentUser curr
             .Select(i => i.TicketId);
 
         var rows = await open
-            .Where(t => t.AssignedAgentId != null)
+            .Where(t => t.AssignedStaffId != null)
             .GroupBy(t => new
             {
-                AgentId = t.AssignedAgentId!.Value,
-                Name = t.AssignedAgent!.FirstName + " " + t.AssignedAgent.LastName,
+                StaffId = t.AssignedStaffId!.Value,
+                Name = t.AssignedStaff!.FirstName + " " + t.AssignedStaff.LastName,
             })
             .Select(g => new
             {
-                g.Key.AgentId,
+                g.Key.StaffId,
                 g.Key.Name,
                 Open = g.Count(),
                 Critical = g.Count(t => t.Priority == PriorityLevel.Critical),
@@ -308,10 +308,10 @@ public sealed class GetDashboardQueryHandler(IAppDbContext db, ICurrentUser curr
             .ToListAsync(cancellationToken);
 
         return rows
-            .Select(r => new AgentWorkload
+            .Select(r => new StaffWorkload
             {
-                AgentId = r.AgentId,
-                AgentName = r.Name,
+                StaffId = r.StaffId,
+                StaffName = r.Name,
                 OpenTickets = r.Open,
                 CriticalTickets = r.Critical,
                 BreachedTickets = r.Breached,

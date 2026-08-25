@@ -89,8 +89,8 @@ public sealed class AssignTicketCommandValidator : AbstractValidator<AssignTicke
     public AssignTicketCommandValidator()
     {
         RuleFor(x => x.Request)
-            .Must(r => r.AgentId is not null || r.TeamId is not null)
-            .WithMessage("Provide an agent, a team, or both.");
+            .Must(r => r.StaffId is not null || r.TeamId is not null)
+            .WithMessage("Provide a staff member, a team, or both.");
 
         RuleFor(x => x.Request.Reason).MaximumLength(1000);
     }
@@ -108,26 +108,26 @@ public sealed class AssignTicketCommandHandler(
 
         // Reassigning a ticket that already has an owner is a different act from
         // assigning an unowned one, and organizations grant them separately.
-        var isReassignment = ticket.AssignedAgentId is not null;
+        var isReassignment = ticket.AssignedStaffId is not null;
         currentUser.Require(isReassignment ? Permissions.Tickets.Reassign : Permissions.Tickets.Assign);
 
         var now = clock.UtcNow;
         var request = command.Request;
 
-        var previousAgentId = ticket.AssignedAgentId;
+        var previousStaffId = ticket.AssignedStaffId;
         var previousTeamId = ticket.AssignedTeamId;
 
-        if (request.AgentId is { } agentId)
+        if (request.StaffId is { } staffId)
         {
-            // The tenant filter makes an agent from another organization invisible, so
+            // The tenant filter makes a staff member from another organization invisible, so
             // this doubles as the cross-tenant guard.
             var agent = await db.Users
-                .Where(u => u.Id == agentId && u.IsActive)
+                .Where(u => u.Id == staffId && u.IsActive)
                 .Select(u => new { u.Id })
                 .FirstOrDefaultAsync(cancellationToken)
-                ?? throw new NotFoundException("User", agentId);
+                ?? throw new NotFoundException("User", staffId);
 
-            ticket.AssignedAgentId = agent.Id;
+            ticket.AssignedStaffId = agent.Id;
         }
 
         if (request.TeamId is { } teamId)
@@ -144,11 +144,11 @@ public sealed class AssignTicketCommandHandler(
         // A ticket assigned to a person but to no team belongs to nobody collectively:
         // it disappears from every team queue, so the lead who assigned it can no
         // longer see it, and if that agent leaves it has no owning group at all.
-        // Inheriting the agent's team keeps the ticket inside a queue someone watches.
-        if (ticket.AssignedTeamId is null && ticket.AssignedAgentId is { } assignedAgentId)
+        // Inheriting the staff member's team keeps the ticket inside a queue someone watches.
+        if (ticket.AssignedTeamId is null && ticket.AssignedStaffId is { } assignedStaffId)
         {
             ticket.AssignedTeamId = await db.TeamMembers
-                .Where(m => m.UserId == assignedAgentId && m.IsActive)
+                .Where(m => m.UserId == assignedStaffId && m.IsActive)
                 .OrderBy(m => m.CreatedAtUtc)
                 .Select(m => (Guid?)m.TeamId)
                 .FirstOrDefaultAsync(cancellationToken);
@@ -169,9 +169,9 @@ public sealed class AssignTicketCommandHandler(
         {
             OrganizationId = ticket.OrganizationId,
             TicketId = ticket.Id,
-            PreviousAgentId = previousAgentId,
+            PreviousStaffId = previousStaffId,
             PreviousTeamId = previousTeamId,
-            NewAgentId = ticket.AssignedAgentId,
+            NewStaffId = ticket.AssignedStaffId,
             NewTeamId = ticket.AssignedTeamId,
             Method = AssignmentMethod.Manual,
             Reason = request.Reason,
@@ -184,8 +184,8 @@ public sealed class AssignTicketCommandHandler(
             AuditAction.Assigned, nameof(Ticket), ticket.Id, ticket.TicketNumber,
             changes: new
             {
-                PreviousAgentId = previousAgentId,
-                NewAgentId = ticket.AssignedAgentId,
+                PreviousStaffId = previousStaffId,
+                NewStaffId = ticket.AssignedStaffId,
                 PreviousTeamId = previousTeamId,
                 NewTeamId = ticket.AssignedTeamId,
             },
@@ -194,7 +194,7 @@ public sealed class AssignTicketCommandHandler(
 
         // Same transaction as the assignment itself, so work cannot change hands
         // without the new owner being told.
-        await ticketAudience.AssignedAsync(ticket, previousAgentId, previousTeamId, cancellationToken);
+        await ticketAudience.AssignedAsync(ticket, previousStaffId, previousTeamId, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
         return await TicketProjection.DetailAsync(db, ticket.Id, currentUser, cancellationToken);
@@ -220,12 +220,12 @@ public sealed class AcceptTicketCommandHandler(
 
         // Accepting an unassigned ticket claims it. Accepting someone else's would
         // silently steal it, so that requires the reassignment permission instead.
-        if (ticket.AssignedAgentId is null)
+        if (ticket.AssignedStaffId is null)
         {
-            ticket.AssignedAgentId = me;
+            ticket.AssignedStaffId = me;
             ticket.AssignedAtUtc = now;
 
-            // Same reasoning as manual assignment: a ticket claimed by an agent joins
+            // Same reasoning as manual assignment: a ticket claimed by a staff member joins
             // that agent's team queue rather than dropping out of every queue.
             ticket.AssignedTeamId ??= await db.TeamMembers
                 .Where(m => m.UserId == me && m.IsActive)
@@ -239,14 +239,14 @@ public sealed class AcceptTicketCommandHandler(
                 TicketId = ticket.Id,
                 PreviousTeamId = ticket.AssignedTeamId,
                 NewTeamId = ticket.AssignedTeamId,
-                NewAgentId = me,
+                NewStaffId = me,
                 Method = AssignmentMethod.SelfAssigned,
                 Reason = "Agent accepted an unassigned ticket.",
                 AssignedById = me,
                 AssignedAtUtc = now,
             });
         }
-        else if (ticket.AssignedAgentId != me && !currentUser.Has(Permissions.Tickets.Reassign))
+        else if (ticket.AssignedStaffId != me && !currentUser.Has(Permissions.Tickets.Reassign))
         {
             throw new ForbiddenException(
                 "This ticket is assigned to someone else. Reassign it first if you need to take it over.");
@@ -257,7 +257,7 @@ public sealed class AcceptTicketCommandHandler(
         if (ticket.Status is TicketStatus.New or TicketStatus.Assigned or TicketStatus.Reopened)
         {
             TicketMutation.Transition(
-                db, ticket, TicketStatus.InProgress, currentUser, now, "Accepted by the assigned agent.");
+                db, ticket, TicketStatus.InProgress, currentUser, now, "Accepted by the assigned staff member.");
         }
 
         await slaEngine.SynchroniseWithStatusAsync(ticket, cancellationToken);
@@ -615,7 +615,7 @@ public sealed class ReopenTicketCommandValidator : AbstractValidator<ReopenTicke
     public ReopenTicketCommandValidator()
     {
         RuleFor(x => x.Request.Reason).NotEmpty().MaximumLength(1000)
-            .WithMessage("Explain why the resolution did not work, so the agent knows what to revisit.");
+            .WithMessage("Explain why the resolution did not work, so the staff member knows what to revisit.");
     }
 }
 

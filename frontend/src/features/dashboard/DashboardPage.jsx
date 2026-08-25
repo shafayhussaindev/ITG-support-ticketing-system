@@ -162,7 +162,7 @@ export function DashboardPage() {
   }
 
   const { kpis } = data;
-  const peakLoad = Math.max(1, ...data.agentWorkload.map((a) => a.weightedScore));
+  const peakLoad = Math.max(1, ...data.staffWorkload.map((a) => a.weightedScore));
 
   /** Sends a chart click to the ticket list using the same filter the segment counted. */
   function drill(query) {
@@ -278,10 +278,10 @@ export function DashboardPage() {
           </CardBody>
         </Card>
 
-        {data.agentWorkload.length > 0 ? (
+        {data.staffWorkload.length > 0 ? (
           <Card className={s.wide} data-panel>
             <CardHeader
-              title="Agent workload"
+              title="Staff workload"
               subtitle="Weighted by priority, because ten questions are not ten outages"
             />
             <CardBody>
@@ -289,7 +289,7 @@ export function DashboardPage() {
                 <table className={s.table}>
                   <thead>
                     <tr>
-                      <th scope="col">Agent</th>
+                      <th scope="col">Staff</th>
                       <th scope="col">Open</th>
                       <th scope="col">Critical</th>
                       <th scope="col">Breached</th>
@@ -297,23 +297,23 @@ export function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.agentWorkload.map((agent) => (
-                      <tr key={agent.agentId}>
-                        <td>{agent.agentName}</td>
-                        <td>{agent.openTickets}</td>
-                        <td>{agent.criticalTickets > 0
-                          ? <Badge tone="danger">{agent.criticalTickets}</Badge> : '—'}</td>
-                        <td>{agent.breachedTickets > 0
-                          ? <Badge tone="danger">{agent.breachedTickets}</Badge> : '—'}</td>
+                    {data.staffWorkload.map((person) => (
+                      <tr key={person.staffId}>
+                        <td>{person.staffName}</td>
+                        <td>{person.openTickets}</td>
+                        <td>{person.criticalTickets > 0
+                          ? <Badge tone="danger">{person.criticalTickets}</Badge> : '—'}</td>
+                        <td>{person.breachedTickets > 0
+                          ? <Badge tone="danger">{person.breachedTickets}</Badge> : '—'}</td>
                         <td>
                           <div className={s.loadRow}>
                             <div className={s.loadBar}>
                               <span
                                 className={s.loadFill}
-                                style={{ width: `${(agent.weightedScore / peakLoad) * 100}%` }}
+                                style={{ width: `${(person.weightedScore / peakLoad) * 100}%` }}
                               />
                             </div>
-                            <span className={s.loadValue}>{agent.weightedScore}</span>
+                            <span className={s.loadValue}>{person.weightedScore}</span>
                           </div>
                         </td>
                       </tr>

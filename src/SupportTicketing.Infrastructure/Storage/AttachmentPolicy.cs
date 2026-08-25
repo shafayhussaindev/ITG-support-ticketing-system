@@ -36,7 +36,7 @@ public sealed class AttachmentPolicy(IOptions<FileStorageOptions> options) : IAt
 
         // Logs, CSV exports and configuration files have no signature to detect, so
         // they arrive as octet-stream. Refusing that would refuse the single most
-        // useful thing an agent can ask a requester for.
+        // useful thing a staff member can ask a requester for.
         "application/octet-stream",
     };
 

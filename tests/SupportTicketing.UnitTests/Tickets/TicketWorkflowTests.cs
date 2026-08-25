@@ -6,14 +6,14 @@ namespace SupportTicketing.UnitTests.Tickets;
 
 public class TicketWorkflowTests
 {
-    private static Ticket TicketWith(TicketStatus status, string? resolution = null, Guid? agentId = null) => new()
+    private static Ticket TicketWith(TicketStatus status, string? resolution = null, Guid? staffId = null) => new()
     {
         TicketNumber = "TKT-2026-000001",
         Subject = "Printer offline",
         Description = "The floor printer stopped responding.",
         Status = status,
         ResolutionSummary = resolution,
-        AssignedAgentId = agentId,
+        AssignedStaffId = staffId,
     };
 
     [Theory]
@@ -125,7 +125,7 @@ public class TicketWorkflowTests
     [Fact]
     public void Reassignment_is_expressed_as_Assigned_to_Assigned()
     {
-        // Moving a ticket between agents does not change the phase of the work, so the
+        // Moving a ticket between staff does not change the phase of the work, so the
         // graph has to permit the self-edge or every reassignment would be rejected.
         TicketWorkflow.CanTransition(TicketStatus.Assigned, TicketStatus.Assigned).ShouldBeTrue();
     }

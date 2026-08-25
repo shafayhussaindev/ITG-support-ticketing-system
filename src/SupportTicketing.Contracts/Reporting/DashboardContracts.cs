@@ -5,7 +5,7 @@ namespace SupportTicketing.Contracts.Reporting;
 /// </summary>
 /// <remarks>
 /// Every figure is computed over the tickets the caller is entitled to see, so a
-/// requester, an agent and a manager asking for "open tickets" legitimately get
+/// requester, a staff member and a manager asking for "open tickets" legitimately get
 /// different numbers from the same endpoint. The scope is taken from the token.
 /// </remarks>
 public sealed record DashboardResponse
@@ -18,7 +18,7 @@ public sealed record DashboardResponse
     public required IReadOnlyList<CategoryCount> ByStatus { get; init; }
     public required IReadOnlyList<CategoryCount> ByPriority { get; init; }
     public required IReadOnlyList<CategoryCount> ByCategory { get; init; }
-    public required IReadOnlyList<AgentWorkload> AgentWorkload { get; init; }
+    public required IReadOnlyList<StaffWorkload> StaffWorkload { get; init; }
 }
 
 public sealed record DashboardKpis
@@ -66,10 +66,10 @@ public sealed record CategoryCount
     public string? DrillDownQuery { get; init; }
 }
 
-public sealed record AgentWorkload
+public sealed record StaffWorkload
 {
-    public required Guid AgentId { get; init; }
-    public required string AgentName { get; init; }
+    public required Guid StaffId { get; init; }
+    public required string StaffName { get; init; }
     public required int OpenTickets { get; init; }
     public required int CriticalTickets { get; init; }
     public required int BreachedTickets { get; init; }

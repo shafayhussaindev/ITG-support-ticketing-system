@@ -300,8 +300,8 @@ public class AccountManagementTests(ApiFactory factory)
     {
         var superAdmin = await SignInAsync("superadmin@itg.test");
 
-        var (agent, agentId, _, _) = await NewAccountAsync(
-            "departing.agent", roleName: SupportTicketing.Domain.Identity.RoleNames.SupportAgent);
+        var (agent, staffId, _, _) = await NewAccountAsync(
+            "departing.agent", roleName: SupportTicketing.Domain.Identity.RoleNames.Staff);
 
         var (requester, _, _, _) = await NewAccountAsync("stays.behind");
 
@@ -318,7 +318,7 @@ public class AccountManagementTests(ApiFactory factory)
 
         var assigned = await superAdmin.PostAsJsonAsync(
             $"/api/v1/tickets/{ticket.Id}/assign",
-            new Contracts.Tickets.AssignTicketRequest { AgentId = agentId, Reason = "Only agent free." });
+            new Contracts.Tickets.AssignTicketRequest { StaffId = staffId, Reason = "Only agent free." });
 
         assigned.StatusCode.ShouldBe(HttpStatusCode.OK, await assigned.Content.ReadAsStringAsync());
 
@@ -331,7 +331,7 @@ public class AccountManagementTests(ApiFactory factory)
 
         resolved.StatusCode.ShouldBe(HttpStatusCode.OK, await resolved.Content.ReadAsStringAsync());
 
-        var response = await superAdmin.DeleteAsync($"/api/v1/admin/users/{agentId}");
+        var response = await superAdmin.DeleteAsync($"/api/v1/admin/users/{staffId}");
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
 
         var result = (await response.Content.ReadFromJsonAsync<
@@ -345,7 +345,7 @@ public class AccountManagementTests(ApiFactory factory)
 
         // Who fixed it is part of the record. The name is gone; the fact that a
         // person did it, and that the person is no longer here, is not.
-        seen.AssignedAgentName.ShouldBe("Deleted user");
+        seen.AssignedStaffName.ShouldBe("Deleted user");
         seen.ResolvedByName.ShouldBe("Deleted user");
         seen.ResolutionSummary.ShouldBe("Replaced the failing cable.");
     }

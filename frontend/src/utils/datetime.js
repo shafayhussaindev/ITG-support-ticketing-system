@@ -1,6 +1,6 @@
 /*
   The server stores and returns UTC. Everything shown to a user is rendered in their
-  own locale and zone by the browser, so a Karachi agent and a London manager reading
+  own locale and zone by the browser, so a Karachi staff member and a London manager reading
   the same ticket each see their own local time without the server knowing either.
 */
 

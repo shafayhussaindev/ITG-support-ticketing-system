@@ -21,7 +21,7 @@ public class Category : TenantEntity
     public int DisplayOrder { get; set; }
     public bool IsActive { get; set; } = true;
 
-    /// <summary>Hidden from the requester portal; agents may still select it.</summary>
+    /// <summary>Hidden from the requester portal; staff may still select it.</summary>
     public bool IsInternalOnly { get; set; }
 
     public ICollection<Subcategory> Subcategories { get; set; } = [];

@@ -29,7 +29,7 @@ export function SatisfactionPanel({ ticketId, ticketStatus, isRequester }) {
 
   const [rating, setRating] = useState(0);
   const [resolutionRating, setResolutionRating] = useState(0);
-  const [agentRating, setAgentRating] = useState(0);
+  const [staffRating, setStaffRating] = useState(0);
   const [comment, setComment] = useState('');
 
   const finished = ticketStatus === 'Resolved' || ticketStatus === 'Closed';
@@ -45,7 +45,7 @@ export function SatisfactionPanel({ ticketId, ticketStatus, isRequester }) {
       reportingService.submitRating(ticketId, {
         rating,
         resolutionRating: resolutionRating || null,
-        agentRating: agentRating || null,
+        staffRating: staffRating || null,
         comment: comment.trim() || null,
       }),
     onSuccess: () => {
@@ -106,8 +106,8 @@ export function SatisfactionPanel({ ticketId, ticketStatus, isRequester }) {
           </fieldset>
 
           <fieldset className={s.fieldset}>
-            <legend className={s.legend}>How was the agent?</legend>
-            <Stars value={agentRating} onChange={setAgentRating} name="agent" />
+            <legend className={s.legend}>How was the staff member?</legend>
+            <Stars value={staffRating} onChange={setStaffRating} name="staff" />
           </fieldset>
 
           <label className={s.commentLabel} htmlFor="csat-comment">

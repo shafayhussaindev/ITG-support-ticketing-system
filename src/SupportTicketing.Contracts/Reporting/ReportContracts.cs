@@ -13,7 +13,7 @@ public sealed record ReportQueryParameters
     public DateTime? ToUtc { get; init; }
     public Guid? TeamId { get; init; }
     public Guid? CategoryId { get; init; }
-    public Guid? AgentId { get; init; }
+    public Guid? StaffId { get; init; }
 }
 
 /// <summary>The period a report actually covered, after clamping.</summary>
@@ -63,18 +63,18 @@ public sealed record SlaComplianceRow
     public double? AverageResolutionMinutes { get; init; }
 }
 
-// --------------------------------------------------------- Agent performance
+// --------------------------------------------------------- Staff performance
 
-public sealed record AgentPerformanceReport
+public sealed record StaffPerformanceReport
 {
     public required ReportPeriod Period { get; init; }
-    public required IReadOnlyList<AgentPerformanceRow> Agents { get; init; }
+    public required IReadOnlyList<StaffPerformanceRow> Staff { get; init; }
 }
 
-public sealed record AgentPerformanceRow
+public sealed record StaffPerformanceRow
 {
-    public required Guid AgentId { get; init; }
-    public required string AgentName { get; init; }
+    public required Guid StaffId { get; init; }
+    public required string StaffName { get; init; }
     public string? TeamName { get; init; }
 
     /// <summary>Tickets assigned to this agent that are still open.</summary>
@@ -221,14 +221,14 @@ public sealed record SatisfactionReport
     /// <summary>Counts for one through five stars, always five entries including zeroes.</summary>
     public required IReadOnlyList<LabelledCount> Distribution { get; init; }
 
-    public required IReadOnlyList<SatisfactionByAgentRow> ByAgent { get; init; }
+    public required IReadOnlyList<SatisfactionByStaffRow> ByStaff { get; init; }
     public required IReadOnlyList<SatisfactionCommentRow> RecentComments { get; init; }
 }
 
-public sealed record SatisfactionByAgentRow
+public sealed record SatisfactionByStaffRow
 {
-    public required Guid AgentId { get; init; }
-    public required string AgentName { get; init; }
+    public required Guid StaffId { get; init; }
+    public required string StaffName { get; init; }
     public required int Responses { get; init; }
     public required double AverageRating { get; init; }
     public required int Detractors { get; init; }
@@ -257,5 +257,5 @@ public sealed record ReportExportRequest
     public DateTime? ToUtc { get; init; }
     public Guid? TeamId { get; init; }
     public Guid? CategoryId { get; init; }
-    public Guid? AgentId { get; init; }
+    public Guid? StaffId { get; init; }
 }

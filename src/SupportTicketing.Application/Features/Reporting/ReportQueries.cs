@@ -76,9 +76,9 @@ internal static class ReportWindow
             query = query.Where(t => t.CategoryId == categoryId);
         }
 
-        if (parameters.AgentId is { } agentId)
+        if (parameters.StaffId is { } staffId)
         {
-            query = query.Where(t => t.AssignedAgentId == agentId);
+            query = query.Where(t => t.AssignedStaffId == staffId);
         }
 
         return query;
@@ -218,10 +218,10 @@ public sealed class GetSlaComplianceReportQueryHandler(
     }
 }
 
-// --------------------------------------------------------- Agent performance
+// --------------------------------------------------------- Staff performance
 
-public sealed record GetAgentPerformanceReportQuery(ReportQueryParameters Parameters)
-    : IQuery<AgentPerformanceReport>;
+public sealed record GetStaffPerformanceReportQuery(ReportQueryParameters Parameters)
+    : IQuery<StaffPerformanceReport>;
 
 /// <summary>
 /// Per-agent throughput and quality.
@@ -231,12 +231,12 @@ public sealed record GetAgentPerformanceReportQuery(ReportQueryParameters Parame
 /// alone rewards closing tickets quickly whether or not the problem went away, and a
 /// report that measures only what is easy to measure will be optimised for.
 /// </remarks>
-public sealed class GetAgentPerformanceReportQueryHandler(
+public sealed class GetStaffPerformanceReportQueryHandler(
     IAppDbContext db, ICurrentUser currentUser, IClock clock)
-    : IQueryHandler<GetAgentPerformanceReportQuery, AgentPerformanceReport>
+    : IQueryHandler<GetStaffPerformanceReportQuery, StaffPerformanceReport>
 {
-    public async Task<AgentPerformanceReport> HandleAsync(
-        GetAgentPerformanceReportQuery query, CancellationToken cancellationToken)
+    public async Task<StaffPerformanceReport> HandleAsync(
+        GetStaffPerformanceReportQuery query, CancellationToken cancellationToken)
     {
         var (from, to, days) = ReportWindow.Resolve(
             query.Parameters.FromUtc, query.Parameters.ToUtc, clock.UtcNow);
@@ -248,21 +248,21 @@ public sealed class GetAgentPerformanceReportQueryHandler(
         // 403, so the page still renders and says why it is empty.
         if (!currentUser.Has(Permissions.Tickets.ViewTeam))
         {
-            return new AgentPerformanceReport
+            return new StaffPerformanceReport
             {
                 Period = await ReportWindow.DescribeAsync(
                     visible, currentUser, from, to, days, cancellationToken),
-                Agents = [],
+                Staff = [],
             };
         }
 
-        var assigned = visible.Where(t => t.AssignedAgentId != null);
+        var assigned = visible.Where(t => t.AssignedStaffId != null);
 
         var rows = await assigned
-            .Select(t => new AgentRow
+            .Select(t => new StaffRow
             {
-                AgentId = t.AssignedAgentId!.Value,
-                AgentName = t.AssignedAgent!.FirstName + " " + t.AssignedAgent.LastName,
+                StaffId = t.AssignedStaffId!.Value,
+                StaffName = t.AssignedStaff!.FirstName + " " + t.AssignedStaff.LastName,
                 TeamName = t.AssignedTeam == null ? null : t.AssignedTeam.Name,
                 Status = t.Status,
                 CreatedAtUtc = t.CreatedAtUtc,
@@ -273,41 +273,41 @@ public sealed class GetAgentPerformanceReportQueryHandler(
             })
             .ToListAsync(cancellationToken);
 
-        var breachedByAgent = await (
+        var breachedByStaff = await (
             from instance in db.TicketSlaInstances.AsNoTracking()
             join ticket in assigned on instance.TicketId equals ticket.Id
             where instance.ResolutionState == SlaTimerState.Breached
-            group ticket by ticket.AssignedAgentId!.Value into g
-            select new { AgentId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.AgentId, x => x.Count, cancellationToken);
+            group ticket by ticket.AssignedStaffId!.Value into g
+            select new { StaffId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.StaffId, x => x.Count, cancellationToken);
 
-        var ratingsByAgent = await (
+        var ratingsByStaff = await (
             from rating in db.SatisfactionRatings.AsNoTracking()
             join ticket in assigned on rating.TicketId equals ticket.Id
-            group rating by ticket.AssignedAgentId!.Value into g
-            select new { AgentId = g.Key, Count = g.Count(), Average = g.Average(r => (double)r.Rating) })
-            .ToDictionaryAsync(x => x.AgentId, x => new { x.Count, x.Average }, cancellationToken);
+            group rating by ticket.AssignedStaffId!.Value into g
+            select new { StaffId = g.Key, Count = g.Count(), Average = g.Average(r => (double)r.Rating) })
+            .ToDictionaryAsync(x => x.StaffId, x => new { x.Count, x.Average }, cancellationToken);
 
-        var agents = rows
-            .GroupBy(r => new { r.AgentId, r.AgentName, r.TeamName })
+        var staff = rows
+            .GroupBy(r => new { r.StaffId, r.StaffName, r.TeamName })
             .Select(g =>
             {
                 var responded = g.Where(r => r.FirstRespondedAtUtc is not null).ToList();
                 var resolved = g.Where(r => r.ResolvedAtUtc is not null).ToList();
 
-                ratingsByAgent.TryGetValue(g.Key.AgentId, out var csat);
+                ratingsByStaff.TryGetValue(g.Key.StaffId, out var csat);
 
-                return new AgentPerformanceRow
+                return new StaffPerformanceRow
                 {
-                    AgentId = g.Key.AgentId,
-                    AgentName = g.Key.AgentName,
+                    StaffId = g.Key.StaffId,
+                    StaffName = g.Key.StaffName,
                     TeamName = g.Key.TeamName,
                     OpenTickets = g.Count(r =>
                         r.Status != TicketStatus.Closed && r.Status != TicketStatus.Cancelled),
                     ResolvedInPeriod = resolved.Count,
                     ClosedInPeriod = g.Count(r => r.ClosedAtUtc is not null),
                     ReopenedAfterResolution = g.Count(r => r.ReopenCount > 0),
-                    SlaBreached = breachedByAgent.GetValueOrDefault(g.Key.AgentId),
+                    SlaBreached = breachedByStaff.GetValueOrDefault(g.Key.StaffId),
                     AverageFirstResponseMinutes = responded.Count == 0
                         ? null
                         : ReportWindow.Round(responded.Average(r =>
@@ -321,20 +321,20 @@ public sealed class GetAgentPerformanceReportQueryHandler(
                 };
             })
             .OrderByDescending(a => a.ResolvedInPeriod)
-            .ThenBy(a => a.AgentName)
+            .ThenBy(a => a.StaffName)
             .ToList();
 
-        return new AgentPerformanceReport
+        return new StaffPerformanceReport
         {
             Period = await ReportWindow.DescribeAsync(visible, currentUser, from, to, days, cancellationToken),
-            Agents = agents,
+            Staff = staff,
         };
     }
 
-    private sealed class AgentRow
+    private sealed class StaffRow
     {
-        public Guid AgentId { get; init; }
-        public required string AgentName { get; init; }
+        public Guid StaffId { get; init; }
+        public required string StaffName { get; init; }
         public string? TeamName { get; init; }
         public TicketStatus Status { get; init; }
         public DateTime CreatedAtUtc { get; init; }
@@ -500,16 +500,16 @@ public sealed class GetSatisfactionReportQueryHandler(
         var byScore = distribution.ToDictionary(x => x.Score, x => x.Count);
 
         var byAgent = await ratings
-            .Where(x => x.ticket.AssignedAgentId != null)
+            .Where(x => x.ticket.AssignedStaffId != null)
             .GroupBy(x => new
             {
-                AgentId = x.ticket.AssignedAgentId!.Value,
-                Name = x.ticket.AssignedAgent!.FirstName + " " + x.ticket.AssignedAgent.LastName,
+                StaffId = x.ticket.AssignedStaffId!.Value,
+                Name = x.ticket.AssignedStaff!.FirstName + " " + x.ticket.AssignedStaff.LastName,
             })
-            .Select(g => new SatisfactionByAgentRow
+            .Select(g => new SatisfactionByStaffRow
             {
-                AgentId = g.Key.AgentId,
-                AgentName = g.Key.Name,
+                StaffId = g.Key.StaffId,
+                StaffName = g.Key.Name,
                 Responses = g.Count(),
                 AverageRating = g.Average(x => (double)x.rating.Rating),
                 // IsDetractor is a computed property EF is told to ignore, so the
@@ -549,7 +549,7 @@ public sealed class GetSatisfactionReportQueryHandler(
                 .. Enumerable.Range(1, 5).Select(score =>
                     new LabelledCount(score.ToString(), byScore.GetValueOrDefault(score)))
             ],
-            ByAgent =
+            ByStaff =
             [
                 .. byAgent
                     .Select(a => a with { AverageRating = Math.Round(a.AverageRating, 2) })

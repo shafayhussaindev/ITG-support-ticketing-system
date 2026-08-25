@@ -98,8 +98,8 @@ public sealed class SatisfactionRatingConfiguration : IEntityTypeConfiguration<S
             t.HasCheckConstraint("CK_SatisfactionRatings_Rating", "[Rating] BETWEEN 1 AND 5");
             t.HasCheckConstraint("CK_SatisfactionRatings_Resolution",
                 "[ResolutionRating] IS NULL OR [ResolutionRating] BETWEEN 1 AND 5");
-            t.HasCheckConstraint("CK_SatisfactionRatings_Agent",
-                "[AgentRating] IS NULL OR [AgentRating] BETWEEN 1 AND 5");
+            t.HasCheckConstraint("CK_SatisfactionRatings_Staff",
+                "[StaffRating] IS NULL OR [StaffRating] BETWEEN 1 AND 5");
         });
 
         builder.Property(r => r.Comment).HasMaxLength(2000);
@@ -113,9 +113,9 @@ public sealed class SatisfactionRatingConfiguration : IEntityTypeConfiguration<S
             .HasFilter("[IsDeleted] = 0")
             .HasDatabaseName("UX_SatisfactionRatings_Ticket");
 
-        // Agent and team performance reporting.
-        builder.HasIndex(r => new { r.OrganizationId, r.RatedAgentId, r.SubmittedAtUtc })
-            .HasDatabaseName("IX_SatisfactionRatings_Org_Agent_Submitted");
+        // Staff and team performance reporting.
+        builder.HasIndex(r => new { r.OrganizationId, r.RatedStaffId, r.SubmittedAtUtc })
+            .HasDatabaseName("IX_SatisfactionRatings_Org_Staff_Submitted");
 
         builder.HasIndex(r => new { r.OrganizationId, r.SubmittedAtUtc })
             .HasDatabaseName("IX_SatisfactionRatings_Org_Submitted");

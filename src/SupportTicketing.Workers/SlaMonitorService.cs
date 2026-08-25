@@ -275,7 +275,7 @@ public sealed class SlaMonitorService(
     /// Tells everyone who should hear about it.
     /// </summary>
     /// <remarks>
-    /// This used to notify the assigned agent and return silently when there was none,
+    /// This used to notify the assigned staff member and return silently when there was none,
     /// which meant an unassigned ticket breached without a word to anybody — the case
     /// that most needs saying out loud. Supervision is now unconditional.
     /// </remarks>

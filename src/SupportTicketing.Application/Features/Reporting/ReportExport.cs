@@ -53,7 +53,7 @@ public sealed class ExportReportCommandHandler(
     /// </remarks>
     private static readonly string[] KnownReports =
     [
-        "tickets", "sla-compliance", "agent-performance", "satisfaction",
+        "tickets", "sla-compliance", "staff-performance", "satisfaction",
         "volume-trend", "customer-behaviour",
     ];
 
@@ -81,14 +81,14 @@ public sealed class ExportReportCommandHandler(
             ToUtc = command.Request.ToUtc,
             TeamId = command.Request.TeamId,
             CategoryId = command.Request.CategoryId,
-            AgentId = command.Request.AgentId,
+            StaffId = command.Request.StaffId,
         };
 
         var (csv, rowCount) = report switch
         {
             "tickets" => await ExportTicketsAsync(parameters, cancellationToken),
             "sla-compliance" => await ExportSlaComplianceAsync(parameters, cancellationToken),
-            "agent-performance" => await ExportAgentPerformanceAsync(parameters, cancellationToken),
+            "staff-performance" => await ExportStaffPerformanceAsync(parameters, cancellationToken),
             "volume-trend" => await ExportVolumeTrendAsync(parameters, cancellationToken),
             "customer-behaviour" => await ExportCustomerBehaviourAsync(parameters, cancellationToken),
             _ => await ExportSatisfactionAsync(parameters, cancellationToken),
@@ -140,7 +140,7 @@ public sealed class ExportReportCommandHandler(
                 Urgency = t.Urgency.ToString(),
                 Category = t.Category == null ? null : t.Category.Name,
                 Requester = t.Requester == null ? null : t.Requester.FirstName + " " + t.Requester.LastName,
-                Agent = t.AssignedAgent == null ? null : t.AssignedAgent.FirstName + " " + t.AssignedAgent.LastName,
+                Staff = t.AssignedStaff == null ? null : t.AssignedStaff.FirstName + " " + t.AssignedStaff.LastName,
                 Team = t.AssignedTeam == null ? null : t.AssignedTeam.Name,
                 t.CreatedAtUtc,
                 t.FirstRespondedAtUtc,
@@ -153,14 +153,14 @@ public sealed class ExportReportCommandHandler(
 
         var csv = new CsvBuilder(
             "Ticket", "Subject", "Type", "Status", "Priority", "Impact", "Urgency", "Category",
-            "Requester", "Agent", "Team", "Raised (UTC)", "First response (UTC)",
+            "Requester", "Staff", "Team", "Raised (UTC)", "First response (UTC)",
             "Resolved (UTC)", "Closed (UTC)", "Reopened", "Source");
 
         foreach (var r in rows)
         {
             csv.AddRow(
                 r.TicketNumber, r.Subject, r.Type, r.Status, r.Priority, r.Impact, r.Urgency,
-                r.Category, r.Requester, r.Agent, r.Team,
+                r.Category, r.Requester, r.Staff, r.Team,
                 Stamp(r.CreatedAtUtc), Stamp(r.FirstRespondedAtUtc), Stamp(r.ResolvedAtUtc),
                 Stamp(r.ClosedAtUtc), r.ReopenCount.ToString(CultureInfo.InvariantCulture), r.Source);
         }
@@ -207,26 +207,26 @@ public sealed class ExportReportCommandHandler(
         return (csv.Build(), count);
     }
 
-    private async Task<(string Csv, int Rows)> ExportAgentPerformanceAsync(
+    private async Task<(string Csv, int Rows)> ExportStaffPerformanceAsync(
         ReportQueryParameters parameters, CancellationToken cancellationToken)
     {
         var report = await dispatcher.QueryAsync(
-            new GetAgentPerformanceReportQuery(parameters), cancellationToken);
+            new GetStaffPerformanceReportQuery(parameters), cancellationToken);
 
         var csv = new CsvBuilder(
-            "Agent", "Team", "Open", "Resolved", "Closed", "Reopened", "SLA breached",
+            "Staff", "Team", "Open", "Resolved", "Closed", "Reopened", "SLA breached",
             "Avg first response (min)", "Avg resolution (min)", "Satisfaction", "Responses");
 
-        foreach (var a in report.Agents)
+        foreach (var a in report.Staff)
         {
             csv.AddRow(
-                a.AgentName, a.TeamName, Number(a.OpenTickets), Number(a.ResolvedInPeriod),
+                a.StaffName, a.TeamName, Number(a.OpenTickets), Number(a.ResolvedInPeriod),
                 Number(a.ClosedInPeriod), Number(a.ReopenedAfterResolution), Number(a.SlaBreached),
                 Number(a.AverageFirstResponseMinutes), Number(a.AverageResolutionMinutes),
                 Number(a.AverageSatisfaction), Number(a.SatisfactionResponses));
         }
 
-        return (csv.Build(), report.Agents.Count);
+        return (csv.Build(), report.Staff.Count);
     }
 
     private async Task<(string Csv, int Rows)> ExportSatisfactionAsync(
@@ -235,14 +235,14 @@ public sealed class ExportReportCommandHandler(
         var report = await dispatcher.QueryAsync(
             new GetSatisfactionReportQuery(parameters), cancellationToken);
 
-        var csv = new CsvBuilder("Agent", "Responses", "Average rating", "Detractors");
+        var csv = new CsvBuilder("Staff", "Responses", "Average rating", "Detractors");
 
-        foreach (var a in report.ByAgent)
+        foreach (var a in report.ByStaff)
         {
-            csv.AddRow(a.AgentName, Number(a.Responses), Number(a.AverageRating), Number(a.Detractors));
+            csv.AddRow(a.StaffName, Number(a.Responses), Number(a.AverageRating), Number(a.Detractors));
         }
 
-        return (csv.Build(), report.ByAgent.Count);
+        return (csv.Build(), report.ByStaff.Count);
     }
 
     private async Task<(string Csv, int Rows)> ExportVolumeTrendAsync(

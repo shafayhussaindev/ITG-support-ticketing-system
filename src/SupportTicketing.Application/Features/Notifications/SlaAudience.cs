@@ -12,7 +12,7 @@ namespace SupportTicketing.Application.Features.Notifications;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This exists because the previous rule was "tell the assigned agent", which meant an
+/// This exists because the previous rule was "tell the assigned staff member", which meant an
 /// unassigned ticket told nobody. That is exactly backwards: a ticket nobody has picked
 /// up is the one most worth shouting about, because its clock has been running while
 /// nobody looked at it. Seven tickets breached in testing and not one notification was
@@ -73,7 +73,7 @@ public sealed class SlaAudience(IAppDbContext db, INotificationService notificat
         var raised = 0;
 
         // The person who can still do something about it, interrupted.
-        if (ticket.AssignedAgentId is { } assignee)
+        if (ticket.AssignedStaffId is { } assignee)
         {
             raised += await RaiseAsync(ticket, assignee, eventType, severity, title, body,
                 $"{deduplicationKey}:assignee", popup: true, cancellationToken);
@@ -92,7 +92,7 @@ public sealed class SlaAudience(IAppDbContext db, INotificationService notificat
         {
             // Never twice. A team lead who is also holding the ticket has already been
             // interrupted, and a second copy in their list would be noise.
-            if (supervisorId == ticket.AssignedAgentId)
+            if (supervisorId == ticket.AssignedStaffId)
             {
                 continue;
             }
@@ -112,7 +112,7 @@ public sealed class SlaAudience(IAppDbContext db, INotificationService notificat
 
     /// <summary>Says the quiet part, for anyone reading a list rather than a ticket.</summary>
     private static string Unassigned(Ticket ticket, string body) =>
-        ticket.AssignedAgentId is null
+        ticket.AssignedStaffId is null
             ? body + " Nobody is assigned to it."
             : body;
 

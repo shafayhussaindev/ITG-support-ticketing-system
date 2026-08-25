@@ -171,10 +171,10 @@ public class RequesterNotificationTests(ApiFactory factory)
 
         // A ticket cannot jump from New to Resolved; the workflow refuses it. Assigning
         // and accepting is what a real ticket does on the way there.
-        var agentId = (await agent.GetFromJsonAsync<CurrentUserResponse>("/api/v1/auth/me"))!.Id;
+        var staffId = (await agent.GetFromJsonAsync<CurrentUserResponse>("/api/v1/auth/me"))!.Id;
 
         await manager.PostAsJsonAsync($"/api/v1/tickets/{ticket.Id}/assign",
-            new AssignTicketRequest { AgentId = agentId, Reason = "Resolving it." });
+            new AssignTicketRequest { StaffId = staffId, Reason = "Resolving it." });
 
         await agent.PostAsJsonAsync($"/api/v1/tickets/{ticket.Id}/accept", new { });
 

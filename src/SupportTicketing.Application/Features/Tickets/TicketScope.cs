@@ -23,7 +23,7 @@ namespace SupportTicketing.Application.Features.Tickets;
 public static class TicketScope
 {
     /// <summary>
-    /// Applies the caller's data scope. Scopes are cumulative: an agent who also raises
+    /// Applies the caller's data scope. Scopes are cumulative: a staff member who also raises
     /// tickets sees their own alongside their team's.
     /// </summary>
     public static IQueryable<Ticket> ForCurrentUser(this IQueryable<Ticket> query, ICurrentUser user)
@@ -38,9 +38,9 @@ public static class TicketScope
 
             DataScope.Department => query.Where(t =>
                 t.RequesterId == userId
-                || t.AssignedAgentId == userId
+                || t.AssignedStaffId == userId
                 || (user.DepartmentId != null && t.DepartmentId == user.DepartmentId)
-                || (t.AssignedTeamId == null && t.AssignedAgentId == null)),
+                || (t.AssignedTeamId == null && t.AssignedStaffId == null)),
 
             // Support staff also see the unassigned pool. Without this a ticket that
             // matched no routing rule is visible only to the person who raised it and
@@ -48,12 +48,12 @@ public static class TicketScope
             // precise failure the "no ticket goes unowned" requirement guards against.
             DataScope.Team => query.Where(t =>
                 t.RequesterId == userId
-                || t.AssignedAgentId == userId
+                || t.AssignedStaffId == userId
                 || (t.AssignedTeamId != null && user.TeamIds.Contains(t.AssignedTeamId.Value))
-                || (t.AssignedTeamId == null && t.AssignedAgentId == null)),
+                || (t.AssignedTeamId == null && t.AssignedStaffId == null)),
 
             DataScope.Assigned => query.Where(t =>
-                t.RequesterId == userId || t.AssignedAgentId == userId),
+                t.RequesterId == userId || t.AssignedStaffId == userId),
 
             // The safe default. An unrecognised or missing scope must reveal less, not
             // more, so anything unexpected collapses to "only what you raised".

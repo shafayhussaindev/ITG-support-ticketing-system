@@ -92,8 +92,8 @@ public class Ticket : TenantEntity, IHasRowVersion
     public Guid? AssignedTeamId { get; set; }
     public Team? AssignedTeam { get; set; }
 
-    public Guid? AssignedAgentId { get; set; }
-    public User? AssignedAgent { get; set; }
+    public Guid? AssignedStaffId { get; set; }
+    public User? AssignedStaff { get; set; }
 
     // ----- lifecycle --------------------------------------------------------
     public TicketStatus Status { get; set; } = TicketStatus.New;

@@ -245,7 +245,7 @@ public class AiAndRelatedRecordTests(ApiFactory factory)
     {
         var agent = await SignInAsync("agent@itg.test");
 
-        // An agent may use AI but not configure it.
+        // A staff member may use AI but not configure it.
         (await agent.GetAsync("/api/v1/ai/status")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
         var admin = await SignInAsync("admin@itg.test");

@@ -118,7 +118,7 @@ export function Conversation({ ticketId, ticketStatus }) {
                       <span className={s.author}>{comment.authorName ?? 'System'}</span>
 
                       {internal ? (
-                        // Labelled unmistakably: an agent must never be unsure whether
+                        // Labelled unmistakably: a staff member must never be unsure whether
                         // what they are reading is visible to the requester.
                         <span className={s.internalTag}>Internal note — not visible to the requester</span>
                       ) : null}

@@ -83,9 +83,9 @@ public sealed class ListTicketsQueryHandler(IAppDbContext db, ICurrentUser curre
             tickets = tickets.Where(t => t.CategoryId == categoryId);
         }
 
-        if (p.AssignedAgentId is { } agentId)
+        if (p.AssignedStaffId is { } staffId)
         {
-            tickets = tickets.Where(t => t.AssignedAgentId == agentId);
+            tickets = tickets.Where(t => t.AssignedStaffId == staffId);
         }
 
         if (p.AssignedTeamId is { } teamId)
@@ -105,7 +105,7 @@ public sealed class ListTicketsQueryHandler(IAppDbContext db, ICurrentUser curre
 
         if (p.Unassigned == true)
         {
-            tickets = tickets.Where(t => t.AssignedAgentId == null);
+            tickets = tickets.Where(t => t.AssignedStaffId == null);
         }
 
         if (p.OpenOnly == true)
@@ -247,7 +247,7 @@ public sealed class GetTicketTimelineQueryHandler(IAppDbContext db, ICurrentUser
             .Where(a => a.TicketId == query.TicketId)
             .Select(a => new
             {
-                a.AssignedAtUtc, a.PreviousAgentId, a.NewAgentId, a.Method, a.Reason, a.AssignedById, a.Source,
+                a.AssignedAtUtc, a.PreviousStaffId, a.NewStaffId, a.Method, a.Reason, a.AssignedById, a.Source,
             })
             .ToListAsync(cancellationToken);
 
@@ -284,9 +284,9 @@ public sealed class GetTicketTimelineQueryHandler(IAppDbContext db, ICurrentUser
             Kind = "Assignment",
             OccurredAtUtc = a.AssignedAtUtc,
             ActorName = Resolve(names, a.AssignedById, a.Source),
-            Summary = a.PreviousAgentId is null
-                ? $"Assigned to {Name(names, a.NewAgentId) ?? "a team"}"
-                : $"Reassigned from {Name(names, a.PreviousAgentId) ?? "unassigned"} to {Name(names, a.NewAgentId) ?? "unassigned"}",
+            Summary = a.PreviousStaffId is null
+                ? $"Assigned to {Name(names, a.NewStaffId) ?? "a team"}"
+                : $"Reassigned from {Name(names, a.PreviousStaffId) ?? "unassigned"} to {Name(names, a.NewStaffId) ?? "unassigned"}",
             Detail = a.Reason,
             DecisionSource = a.Source.ToString(),
         }));
@@ -311,14 +311,14 @@ public sealed class GetTicketTimelineQueryHandler(IAppDbContext db, ICurrentUser
 
         var assignmentActors = await db.TicketAssignments
             .Where(a => a.TicketId == ticketId)
-            .Select(a => new { a.AssignedById, a.NewAgentId, a.PreviousAgentId })
+            .Select(a => new { a.AssignedById, a.NewStaffId, a.PreviousStaffId })
             .ToListAsync(cancellationToken);
 
         foreach (var actor in assignmentActors)
         {
             ids.Add(actor.AssignedById);
-            ids.Add(actor.NewAgentId);
-            ids.Add(actor.PreviousAgentId);
+            ids.Add(actor.NewStaffId);
+            ids.Add(actor.PreviousStaffId);
         }
 
         var distinct = ids.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();

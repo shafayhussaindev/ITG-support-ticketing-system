@@ -203,7 +203,7 @@ public class ReportingAndKnowledgeTests(ApiFactory factory)
         var created = await agent.PostAsJsonAsync("/api/v1/knowledge/articles", new CreateArticleRequest
         {
             Title = "Draft awaiting publication approval",
-            Summary = "Written by an agent, published by a lead.",
+            Summary = "Written by a staff member, published by a lead.",
             Content = "Body text long enough to be a real article.",
         });
 

@@ -33,14 +33,14 @@ public sealed class ListTeamsQueryHandler(IAppDbContext db, ICurrentUser current
         // to mean five on this team — and the guard that refuses to remove somebody
         // holding open work counts it exactly that way. Grouping by agent alone made
         // the number on the screen and the rule behind the button disagree.
-        var openByAgentAndTeam = await open
-            .Where(t => t.AssignedAgentId != null && t.AssignedTeamId != null)
-            .GroupBy(t => new { AgentId = t.AssignedAgentId!.Value, TeamId = t.AssignedTeamId!.Value })
-            .Select(g => new { g.Key.AgentId, g.Key.TeamId, Count = g.Count() })
+        var openByStaffAndTeam = await open
+            .Where(t => t.AssignedStaffId != null && t.AssignedTeamId != null)
+            .GroupBy(t => new { StaffId = t.AssignedStaffId!.Value, TeamId = t.AssignedTeamId!.Value })
+            .Select(g => new { g.Key.StaffId, g.Key.TeamId, Count = g.Count() })
             .ToListAsync(cancellationToken);
 
-        var openByMember = openByAgentAndTeam
-            .ToDictionary(x => (x.AgentId, x.TeamId), x => x.Count);
+        var openByMember = openByStaffAndTeam
+            .ToDictionary(x => (x.StaffId, x.TeamId), x => x.Count);
 
         var teamNames = await db.Teams.AsNoTracking()
             .ToDictionaryAsync(t => t.Id, t => t.Name, cancellationToken);
@@ -294,7 +294,7 @@ public sealed class RemoveTeamMemberCommandHandler(
             ?? throw new NotFoundException(nameof(TeamMember), command.UserId);
 
         var openTickets = await db.Tickets.AsNoTracking()
-            .CountAsync(t => t.AssignedAgentId == command.UserId
+            .CountAsync(t => t.AssignedStaffId == command.UserId
                              && t.AssignedTeamId == command.TeamId
                              && t.Status != TicketStatus.Closed
                              && t.Status != TicketStatus.Cancelled,

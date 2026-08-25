@@ -68,7 +68,7 @@ public sealed class RequesterAudience(INotificationService notifications, ICurre
             $"Reply on {ticket.TicketNumber}",
             $"{authorName} replied:\n\n{body}",
             // Keyed on the comment's identity. It was keyed on a hash of the body,
-            // which meant an agent who wrote "Any update on this?" twice notified the
+            // which meant a staff member who wrote "Any update on this?" twice notified the
             // requester once — the second was swallowed as a duplicate of the first.
             // A comment id is unique by definition and stable across restarts, which a
             // string hash is not.

@@ -30,13 +30,13 @@ public sealed class CatalogController(IDispatcher dispatcher) : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await dispatcher.QueryAsync(new GetApplicationsQuery(), cancellationToken));
 
-    [HttpGet("agents")]
-    [SwaggerOperation(Summary = "List assignable agents", Description =
+    [HttpGet("staff")]
+    [SwaggerOperation(Summary = "List assignable staff", Description =
         "Users who belong to at least one active team, with their current open-ticket count "
         + "so a lead can spread work by eye. Requires ticket.assign.")]
-    [ProducesResponseType<IReadOnlyList<AssignableAgentResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<IReadOnlyList<AssignableStaffResponse>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<IReadOnlyList<AssignableAgentResponse>>> Agents(
+    public async Task<ActionResult<IReadOnlyList<AssignableStaffResponse>>> Staff(
         CancellationToken cancellationToken) =>
-        Ok(await dispatcher.QueryAsync(new GetAssignableAgentsQuery(), cancellationToken));
+        Ok(await dispatcher.QueryAsync(new GetAssignableStaffQuery(), cancellationToken));
 }

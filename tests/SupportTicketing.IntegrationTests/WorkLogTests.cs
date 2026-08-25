@@ -209,10 +209,10 @@ public class WorkLogTests(ApiFactory factory)
 
         var ticket = await RaiseAsync(requester, "Friday catch-up on a closed ticket");
 
-        var agentId = (await agent.GetFromJsonAsync<CurrentUserResponse>("/api/v1/auth/me"))!.Id;
+        var staffId = (await agent.GetFromJsonAsync<CurrentUserResponse>("/api/v1/auth/me"))!.Id;
 
         await lead.PostAsJsonAsync($"/api/v1/tickets/{ticket.Id}/assign",
-            new AssignTicketRequest { AgentId = agentId, Reason = "Closing it." });
+            new AssignTicketRequest { StaffId = staffId, Reason = "Closing it." });
         await agent.PostAsJsonAsync($"/api/v1/tickets/{ticket.Id}/accept", new { });
         await agent.PostAsJsonAsync($"/api/v1/tickets/{ticket.Id}/resolve",
             new ResolveTicketRequest { ResolutionSummary = "Done." });
@@ -241,10 +241,10 @@ public class WorkLogTests(ApiFactory factory)
         var logged = await LogAsync(agent, ticket.Id, 60, "An hour.");
         var entry = (await logged.Content.ReadFromJsonAsync<WorkLogResponse>())!;
 
-        var agentId = (await agent.GetFromJsonAsync<CurrentUserResponse>("/api/v1/auth/me"))!.Id;
+        var staffId = (await agent.GetFromJsonAsync<CurrentUserResponse>("/api/v1/auth/me"))!.Id;
 
         // There is deliberately no way to name somebody else. Logging time against
         // another person is how a timesheet stops being evidence of anything.
-        entry.UserId.ShouldBe(agentId);
+        entry.UserId.ShouldBe(staffId);
     }
 }

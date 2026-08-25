@@ -36,13 +36,13 @@ public class SatisfactionRating : TenantEntity
     /// <summary>How well the outcome solved the problem, 1 to 5. Optional.</summary>
     public int? ResolutionRating { get; set; }
 
-    /// <summary>How the agent handled it, 1 to 5. Optional.</summary>
-    public int? AgentRating { get; set; }
+    /// <summary>How the staff member handled it, 1 to 5. Optional.</summary>
+    public int? StaffRating { get; set; }
 
     public string? Comment { get; set; }
 
-    /// <summary>Copied at submission so agent reporting survives a later reassignment.</summary>
-    public Guid? RatedAgentId { get; set; }
+    /// <summary>Copied at submission so staff reporting survives a later reassignment.</summary>
+    public Guid? RatedStaffId { get; set; }
 
     public Guid? TeamId { get; set; }
 

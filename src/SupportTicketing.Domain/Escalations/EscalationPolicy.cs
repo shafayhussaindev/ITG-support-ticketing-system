@@ -65,7 +65,7 @@ public class EscalationStep : TenantEntity
 
 public enum EscalationRecipient
 {
-    AssignedAgent = 1,
+    AssignedStaff = 1,
     TeamLead = 2,
     DepartmentManager = 3,
     SpecificUser = 4,

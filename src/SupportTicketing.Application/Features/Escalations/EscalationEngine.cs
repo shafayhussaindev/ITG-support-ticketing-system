@@ -165,8 +165,8 @@ public sealed class EscalationEngine(
             case EscalationRecipient.SpecificUser:
                 return step.RecipientUserId;
 
-            case EscalationRecipient.AssignedAgent:
-                return ticket.AssignedAgentId;
+            case EscalationRecipient.AssignedStaff:
+                return ticket.AssignedStaffId;
 
             case EscalationRecipient.TeamLead:
                 if (ticket.AssignedTeamId is not { } teamId)

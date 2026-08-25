@@ -41,9 +41,9 @@ export function TicketDetailPage() {
     enabled: Boolean(ticketQuery.data),
   });
 
-  const agentsQuery = useQuery({
-    queryKey: ['catalog', 'agents'],
-    queryFn: () => api.get('/agents'),
+  const staffQuery = useQuery({
+    queryKey: ['catalog', 'staff'],
+    queryFn: () => api.get('/staff'),
     // Only leads can assign, so only fetch the picker for them.
     enabled: can('ticket.assign'),
     staleTime: 60_000,
@@ -74,7 +74,7 @@ export function TicketDetailPage() {
   }
 
   const accept = useTicketAction(() => ticketService.accept(id), 'Ticket accepted');
-  const assign = useTicketAction((agentId) => ticketService.assign(id, { agentId }), 'Ticket assigned');
+  const assign = useTicketAction((staffId) => ticketService.assign(id, { staffId }), 'Ticket assigned');
   const resolve = useTicketAction(
     () => ticketService.resolve(id, {
       resolutionSummary: resolution.summary,
@@ -113,7 +113,7 @@ export function TicketDetailPage() {
 
   const ticket = ticketQuery.data;
   const isRequester = ticket.requesterId === user?.id;
-  const isAssignee = ticket.assignedAgentId === user?.id;
+  const isAssignee = ticket.assignedStaffId === user?.id;
   const canResolve = can('ticket.resolve') && !['Resolved', 'Closed', 'Cancelled'].includes(ticket.status);
   const canAccept = can('ticket.accept') && ['New', 'Assigned', 'Reopened'].includes(ticket.status);
   const canConfirm = isRequester && ticket.status === 'Resolved';
@@ -263,7 +263,7 @@ export function TicketDetailPage() {
 
                 <dt>Assigned to</dt>
                 <dd>
-                  {ticket.assignedAgentName ?? <span className={s.unassigned}>Unassigned</span>}
+                  {ticket.assignedStaffName ?? <span className={s.unassigned}>Unassigned</span>}
                   {ticket.assignedTeamName ? (
                     <p className={s.note}>{ticket.assignedTeamName}</p>
                   ) : null}
@@ -313,19 +313,19 @@ export function TicketDetailPage() {
             <Card>
               <CardHeader title="Assignment" subtitle="Open ticket counts shown to help spread load" />
               <CardBody>
-                <label className="sr-only" htmlFor="assign-agent">Assign to agent</label>
+                <label className="sr-only" htmlFor="assign-staff">Assign to staff member</label>
                 <select
-                  id="assign-agent"
+                  id="assign-staff"
                   className={s.select}
-                  value={ticket.assignedAgentId ?? ''}
+                  value={ticket.assignedStaffId ?? ''}
                   disabled={assign.isPending}
                   onChange={(e) => e.target.value && assign.mutate(e.target.value)}
                 >
                   <option value="">Unassigned</option>
-                  {(agentsQuery.data ?? []).map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.fullName} — {agent.openTicketCount} open
-                      {agent.isAvailable ? '' : ' (unavailable)'}
+                  {(staffQuery.data ?? []).map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.fullName} — {person.openTicketCount} open
+                      {person.isAvailable ? '' : ' (unavailable)'}
                     </option>
                   ))}
                 </select>

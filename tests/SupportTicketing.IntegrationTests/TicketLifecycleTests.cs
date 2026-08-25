@@ -199,17 +199,17 @@ public class TicketLifecycleTests(ApiFactory factory)
         var ticket = await CreateAsync(requester, NewTicket("Needs an owner"));
 
         var lead = await SignInAsync("lead@itg.test");
-        var agentId = await FindUserIdAsync(lead, "agent@itg.test");
+        var staffId = await FindUserIdAsync(lead, "agent@itg.test");
 
         var response = await lead.PostAsJsonAsync(
             $"/api/v1/tickets/{ticket.Id}/assign",
-            new AssignTicketRequest { AgentId = agentId, Reason = "Closest match on skills." });
+            new AssignTicketRequest { StaffId = staffId, Reason = "Closest match on skills." });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
 
         var assigned = (await response.Content.ReadFromJsonAsync<TicketDetailResponse>())!;
         assigned.Status.ShouldBe("Assigned");
-        assigned.AssignedAgentName.ShouldBe("Ayesha Malik");
+        assigned.AssignedStaffName.ShouldBe("Ayesha Malik");
 
         var timeline = await GetTimelineAsync(lead, ticket.Id);
         timeline.ShouldContain(e => e.Kind == "Assignment" && e.Detail == "Closest match on skills.");
@@ -223,7 +223,7 @@ public class TicketLifecycleTests(ApiFactory factory)
 
         var response = await requester.PostAsJsonAsync(
             $"/api/v1/tickets/{ticket.Id}/assign",
-            new AssignTicketRequest { AgentId = Guid.NewGuid() });
+            new AssignTicketRequest { StaffId = Guid.NewGuid() });
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
@@ -241,7 +241,7 @@ public class TicketLifecycleTests(ApiFactory factory)
 
         var accepted = (await response.Content.ReadFromJsonAsync<TicketDetailResponse>())!;
         accepted.Status.ShouldBe("InProgress");
-        accepted.AssignedAgentName.ShouldBe("Ayesha Malik");
+        accepted.AssignedStaffName.ShouldBe("Ayesha Malik");
         accepted.AcceptedAtUtc.ShouldNotBeNull();
     }
 

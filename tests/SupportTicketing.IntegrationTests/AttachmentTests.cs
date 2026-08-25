@@ -202,7 +202,7 @@ public class AttachmentTests(ApiFactory factory)
         var download = await requester.GetAsync($"/api/v1/tickets/{ticket.Id}/attachments/{hidden.Id}");
         download.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
-        // The agent who uploaded it still sees it.
+        // The staff member who uploaded it still sees it.
         var agentView = await agent.GetFromJsonAsync<IReadOnlyList<AttachmentResponse>>(
             $"/api/v1/tickets/{ticket.Id}/attachments");
 

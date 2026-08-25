@@ -72,7 +72,7 @@ public class SatisfactionTests(ApiFactory factory)
             {
                 Rating = 5,
                 ResolutionRating = 5,
-                AgentRating = 4,
+                StaffRating = 4,
                 Comment = "Sorted within the hour.",
             });
 
@@ -80,11 +80,11 @@ public class SatisfactionTests(ApiFactory factory)
 
         var rating = (await response.Content.ReadFromJsonAsync<SatisfactionRatingResponse>())!;
         rating.Rating.ShouldBe(5);
-        rating.AgentRating.ShouldBe(4);
+        rating.StaffRating.ShouldBe(4);
         rating.RatedByName.ShouldBe("Rabia Khan");
 
-        // Captured at submission so agent reporting survives a later reassignment.
-        rating.RatedAgentName.ShouldBe("Ayesha Malik");
+        // Captured at submission so staff reporting survives a later reassignment.
+        rating.RatedStaffName.ShouldBe("Ayesha Malik");
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public class SatisfactionTests(ApiFactory factory)
     [Fact]
     public async Task Only_the_requester_may_rate()
     {
-        // Nobody else experienced the support, and an agent rating their own work
+        // Nobody else experienced the support, and a staff member rating their own work
         // would be worse than no data at all.
         var ticket = await RaiseAndResolveAsync("Only the requester rates");
         var agent = await SignInAsync("agent@itg.test");

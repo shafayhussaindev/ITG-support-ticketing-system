@@ -29,7 +29,7 @@ public interface ITicketAudience
 
     /// <summary>Announces that a ticket has moved to a new owner or team.</summary>
     Task<int> AssignedAsync(
-        Ticket ticket, Guid? previousAgentId, Guid? previousTeamId, CancellationToken cancellationToken);
+        Ticket ticket, Guid? previousStaffId, Guid? previousTeamId, CancellationToken cancellationToken);
 }
 
 public sealed class TicketAudience(IAppDbContext db, INotificationService notifications, ICurrentUser currentUser)
@@ -37,7 +37,7 @@ public sealed class TicketAudience(IAppDbContext db, INotificationService notifi
 {
     public async Task<int> RaisedAsync(Ticket ticket, CancellationToken cancellationToken)
     {
-        var recipients = await RecipientsAsync(ticket.AssignedAgentId, ticket.AssignedTeamId, cancellationToken);
+        var recipients = await RecipientsAsync(ticket.AssignedStaffId, ticket.AssignedTeamId, cancellationToken);
 
         return await FanOutAsync(
             ticket,
@@ -50,20 +50,20 @@ public sealed class TicketAudience(IAppDbContext db, INotificationService notifi
     }
 
     public async Task<int> AssignedAsync(
-        Ticket ticket, Guid? previousAgentId, Guid? previousTeamId, CancellationToken cancellationToken)
+        Ticket ticket, Guid? previousStaffId, Guid? previousTeamId, CancellationToken cancellationToken)
     {
         // Nothing moved, so nobody needs telling. Re-saving a ticket without changing
         // its owner is common, and a notification for it would be pure noise.
-        if (ticket.AssignedAgentId == previousAgentId && ticket.AssignedTeamId == previousTeamId)
+        if (ticket.AssignedStaffId == previousStaffId && ticket.AssignedTeamId == previousTeamId)
         {
             return 0;
         }
 
-        var recipients = await RecipientsAsync(ticket.AssignedAgentId, ticket.AssignedTeamId, cancellationToken);
+        var recipients = await RecipientsAsync(ticket.AssignedStaffId, ticket.AssignedTeamId, cancellationToken);
 
         // Only the people it moved *to*. Whoever held it before already knows they no
         // longer do, because they were usually the one who passed it on.
-        recipients.Remove(previousAgentId ?? Guid.Empty);
+        recipients.Remove(previousStaffId ?? Guid.Empty);
 
         return await FanOutAsync(
             ticket,
@@ -73,7 +73,7 @@ public sealed class TicketAudience(IAppDbContext db, INotificationService notifi
             Describe(ticket),
             // Keyed on the owner as well as the ticket, so a ticket that moves twice
             // announces itself twice rather than being swallowed as a duplicate.
-            $"ticket-assigned:{ticket.Id}:{ticket.AssignedAgentId}:{ticket.AssignedTeamId}",
+            $"ticket-assigned:{ticket.Id}:{ticket.AssignedStaffId}:{ticket.AssignedTeamId}",
             cancellationToken);
     }
 
@@ -121,7 +121,7 @@ public sealed class TicketAudience(IAppDbContext db, INotificationService notifi
         string key,
         CancellationToken cancellationToken)
     {
-        // Never tell somebody about their own action. An agent raising a ticket on a
+        // Never tell somebody about their own action. A staff member raising a ticket on a
         // requester's behalf, or a lead assigning one to themselves, already knows.
         if (currentUser.UserId is { } actor)
         {

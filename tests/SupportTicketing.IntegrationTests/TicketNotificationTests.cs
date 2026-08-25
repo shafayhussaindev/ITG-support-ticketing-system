@@ -72,7 +72,7 @@ public class TicketNotificationTests(ApiFactory factory)
 
         var assigned = await manager.PostAsJsonAsync(
             $"/api/v1/tickets/{ticket.Id}/assign",
-            new AssignTicketRequest { AgentId = me!.Id, Reason = "You are free." });
+            new AssignTicketRequest { StaffId = me!.Id, Reason = "You are free." });
 
         assigned.StatusCode.ShouldBe(HttpStatusCode.OK, await assigned.Content.ReadAsStringAsync());
 
@@ -100,7 +100,7 @@ public class TicketNotificationTests(ApiFactory factory)
 
         await manager.PostAsJsonAsync(
             $"/api/v1/tickets/{ticket.Id}/assign",
-            new AssignTicketRequest { AgentId = me!.Id, Reason = "Taking this one." });
+            new AssignTicketRequest { StaffId = me!.Id, Reason = "Taking this one." });
 
         var inbox = await InboxAsync(manager);
 
@@ -124,10 +124,10 @@ public class TicketNotificationTests(ApiFactory factory)
         var ticket = await RaiseAsync(requester, "Passed along twice");
 
         await manager.PostAsJsonAsync($"/api/v1/tickets/{ticket.Id}/assign",
-            new AssignTicketRequest { AgentId = first!.Id, Reason = "First owner." });
+            new AssignTicketRequest { StaffId = first!.Id, Reason = "First owner." });
 
         await manager.PostAsJsonAsync($"/api/v1/tickets/{ticket.Id}/assign",
-            new AssignTicketRequest { AgentId = second!.Id, Reason = "Handed over." });
+            new AssignTicketRequest { StaffId = second!.Id, Reason = "Handed over." });
 
         // The deduplication key includes the owner, so the second hand-off is not
         // swallowed as a repeat of the first.

@@ -5,7 +5,7 @@ public sealed record CreateTicketRequest
     public required string Subject { get; init; }
     public required string Description { get; init; }
 
-    /// <summary>Agents may raise a ticket for someone else. Omitted means "on my own behalf".</summary>
+    /// <summary>Staff may raise a ticket for someone else. Omitted means "on my own behalf".</summary>
     public Guid? RequesterId { get; init; }
 
     public Guid? CategoryId { get; init; }
@@ -71,7 +71,7 @@ public sealed record TicketListItemResponse
     public required string Type { get; init; }
     public string? CategoryName { get; init; }
     public required string RequesterName { get; init; }
-    public string? AssignedAgentName { get; init; }
+    public string? AssignedStaffName { get; init; }
     public string? AssignedTeamName { get; init; }
     public required DateTime CreatedAtUtc { get; init; }
     public DateTime? UpdatedAtUtc { get; init; }
@@ -126,8 +126,8 @@ public sealed record TicketDetailResponse
     public Guid? OfficeId { get; init; }
     public string? OfficeName { get; init; }
 
-    public Guid? AssignedAgentId { get; init; }
-    public string? AssignedAgentName { get; init; }
+    public Guid? AssignedStaffId { get; init; }
+    public string? AssignedStaffName { get; init; }
     public Guid? AssignedTeamId { get; init; }
     public string? AssignedTeamName { get; init; }
 
@@ -273,7 +273,7 @@ public sealed record AddCommentRequest
 
 public sealed record AssignTicketRequest
 {
-    public Guid? AgentId { get; init; }
+    public Guid? StaffId { get; init; }
     public Guid? TeamId { get; init; }
     public string? Reason { get; init; }
 }
@@ -331,7 +331,7 @@ public sealed record TicketListQueryParameters
     public string? Priority { get; init; }
     public string? Type { get; init; }
     public Guid? CategoryId { get; init; }
-    public Guid? AssignedAgentId { get; init; }
+    public Guid? AssignedStaffId { get; init; }
     public Guid? AssignedTeamId { get; init; }
     public Guid? RequesterId { get; init; }
     public Guid? DepartmentId { get; init; }

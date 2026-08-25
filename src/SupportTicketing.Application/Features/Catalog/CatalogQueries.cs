@@ -20,7 +20,7 @@ public sealed class GetCategoriesQueryHandler(IAppDbContext db, ICurrentUser cur
     public async Task<IReadOnlyList<CategoryResponse>> HandleAsync(
         GetCategoriesQuery query, CancellationToken cancellationToken)
     {
-        // Requesters must not be offered categories marked internal-only; agents may
+        // Requesters must not be offered categories marked internal-only; staff may
         // still select them.
         var includeInternal = currentUser.Has(Domain.Identity.Permissions.Tickets.ViewTeam);
 
@@ -84,30 +84,30 @@ public sealed class GetApplicationsQueryHandler(IAppDbContext db)
 }
 
 /// <summary>
-/// Agents available for assignment, with their current open-ticket count.
+/// Staff available for assignment, with their current open-ticket count.
 /// </summary>
 /// <remarks>
 /// The count is computed in the same query rather than per agent, and it is the raw
 /// number of open tickets — not the weighted workload score, which arrives with the
 /// assignment engine in a later phase.
 /// </remarks>
-public sealed record GetAssignableAgentsQuery : IQuery<IReadOnlyList<AssignableAgentResponse>>;
+public sealed record GetAssignableStaffQuery : IQuery<IReadOnlyList<AssignableStaffResponse>>;
 
-public sealed class GetAssignableAgentsQueryHandler(IAppDbContext db, ICurrentUser currentUser)
-    : IQueryHandler<GetAssignableAgentsQuery, IReadOnlyList<AssignableAgentResponse>>
+public sealed class GetAssignableStaffQueryHandler(IAppDbContext db, ICurrentUser currentUser)
+    : IQueryHandler<GetAssignableStaffQuery, IReadOnlyList<AssignableStaffResponse>>
 {
-    public async Task<IReadOnlyList<AssignableAgentResponse>> HandleAsync(
-        GetAssignableAgentsQuery query, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AssignableStaffResponse>> HandleAsync(
+        GetAssignableStaffQuery query, CancellationToken cancellationToken)
     {
         currentUser.Require(Domain.Identity.Permissions.Tickets.Assign);
 
         // Only users who belong to at least one team are offered: assigning a ticket
         // to someone with no team would leave it outside every team queue.
-        var agents = await db.Users
+        var staff = await db.Users
             .AsNoTracking()
             .Where(u => u.IsActive && u.TeamMemberships.Any(m => m.IsActive))
             .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
-            .Select(u => new AssignableAgentResponse
+            .Select(u => new AssignableStaffResponse
             {
                 Id = u.Id,
                 FullName = u.FirstName + " " + u.LastName,
@@ -119,12 +119,12 @@ public sealed class GetAssignableAgentsQueryHandler(IAppDbContext db, ICurrentUs
                     .Select(m => m.Team!.Name)
                     .ToList(),
                 OpenTicketCount = db.Tickets.Count(t =>
-                    t.AssignedAgentId == u.Id
+                    t.AssignedStaffId == u.Id
                     && t.Status != Domain.Enums.TicketStatus.Closed
                     && t.Status != Domain.Enums.TicketStatus.Cancelled),
             })
             .ToListAsync(cancellationToken);
 
-        return agents;
+        return staff;
     }
 }

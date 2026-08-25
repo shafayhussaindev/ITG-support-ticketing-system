@@ -21,13 +21,13 @@ public class TicketAssignment : Entity, IAppendOnly, ITenantOwned
     public Ticket? Ticket { get; set; }
 
     public Guid? PreviousTeamId { get; set; }
-    public Guid? PreviousAgentId { get; set; }
+    public Guid? PreviousStaffId { get; set; }
 
     public Guid? NewTeamId { get; set; }
     public Team? NewTeam { get; set; }
 
-    public Guid? NewAgentId { get; set; }
-    public User? NewAgent { get; set; }
+    public Guid? NewStaffId { get; set; }
+    public User? NewStaff { get; set; }
 
     public AssignmentMethod Method { get; set; } = AssignmentMethod.Manual;
 

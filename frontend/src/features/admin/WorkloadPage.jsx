@@ -7,7 +7,7 @@ import s from './admin.module.css';
 /**
  * Who is holding how much work, right now.
  *
- * <p>Not the agent performance report, which answers how last month went. This answers
+ * <p>Not the staff performance report, which answers how last month went. This answers
  * "who can take the next ticket", which is the question actually asked before
  * reassigning anything, and it is about this moment rather than a period.</p>
  *

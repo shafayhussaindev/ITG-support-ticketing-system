@@ -51,9 +51,9 @@ public sealed class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         builder.HasIndex(t => new { t.OrganizationId, t.Status, t.CreatedAtUtc })
             .HasDatabaseName("IX_Tickets_Org_Status_Created");
 
-        // The agent queue: "my open work, worst first".
-        builder.HasIndex(t => new { t.OrganizationId, t.AssignedAgentId, t.Status, t.Priority })
-            .HasDatabaseName("IX_Tickets_Org_Agent_Status_Priority");
+        // The staff queue: "my open work, worst first".
+        builder.HasIndex(t => new { t.OrganizationId, t.AssignedStaffId, t.Status, t.Priority })
+            .HasDatabaseName("IX_Tickets_Org_Staff_Status_Priority");
 
         // The team queue, including the unassigned pool.
         builder.HasIndex(t => new { t.OrganizationId, t.AssignedTeamId, t.Status })
@@ -72,8 +72,8 @@ public sealed class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         builder.HasOne(t => t.Requester).WithMany()
             .HasForeignKey(t => t.RequesterId).OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(t => t.AssignedAgent).WithMany()
-            .HasForeignKey(t => t.AssignedAgentId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(t => t.AssignedStaff).WithMany()
+            .HasForeignKey(t => t.AssignedStaffId).OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(t => t.AssignedTeam).WithMany()
             .HasForeignKey(t => t.AssignedTeamId).OnDelete(DeleteBehavior.Restrict);
@@ -201,8 +201,8 @@ public sealed class TicketAssignmentConfiguration : IEntityTypeConfiguration<Tic
         builder.HasIndex(a => new { a.TicketId, a.AssignedAtUtc })
             .HasDatabaseName("IX_TicketAssignments_Ticket_AssignedAt");
 
-        builder.HasOne(a => a.NewAgent).WithMany()
-            .HasForeignKey(a => a.NewAgentId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(a => a.NewStaff).WithMany()
+            .HasForeignKey(a => a.NewStaffId).OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(a => a.NewTeam).WithMany()
             .HasForeignKey(a => a.NewTeamId).OnDelete(DeleteBehavior.Restrict);

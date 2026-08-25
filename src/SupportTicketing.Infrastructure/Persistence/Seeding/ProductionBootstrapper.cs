@@ -263,7 +263,7 @@ public static class ProductionBootstrapper
             // fires — which is the correct answer and needs no configuration.
             var steps = new (int Level, int Threshold, EscalationRecipient Recipient, bool ChangeStatus)[]
             {
-                (1, 70, EscalationRecipient.AssignedAgent, false),
+                (1, 70, EscalationRecipient.AssignedStaff, false),
                 (2, 90, EscalationRecipient.TeamLead, false),
                 (3, 100, EscalationRecipient.TeamLead, true),
                 (4, 120, EscalationRecipient.DepartmentManager, false),

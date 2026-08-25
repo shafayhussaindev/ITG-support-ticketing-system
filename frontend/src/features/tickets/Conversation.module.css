@@ -54,7 +54,7 @@
 
 /*
   Internal notes get a heavy, unmistakable treatment: amber ground, dashed border and
-  an explicit label. An agent glancing at the thread must never have to work out
+  an explicit label. A staff member glancing at the thread must never have to work out
   whether what they are about to write beneath is visible to the requester.
 */
 .internal .bubble {

@@ -103,7 +103,7 @@ public sealed record SubmitRatingRequest
     public required int Rating { get; init; }
 
     public int? ResolutionRating { get; init; }
-    public int? AgentRating { get; init; }
+    public int? StaffRating { get; init; }
     public string? Comment { get; init; }
 }
 
@@ -113,9 +113,9 @@ public sealed record SatisfactionRatingResponse
     public required Guid TicketId { get; init; }
     public required int Rating { get; init; }
     public int? ResolutionRating { get; init; }
-    public int? AgentRating { get; init; }
+    public int? StaffRating { get; init; }
     public string? Comment { get; init; }
     public required string RatedByName { get; init; }
-    public string? RatedAgentName { get; init; }
+    public string? RatedStaffName { get; init; }
     public required DateTime SubmittedAtUtc { get; init; }
 }

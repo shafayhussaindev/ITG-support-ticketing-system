@@ -34,7 +34,7 @@ public class AuthenticationTests(ApiFactory factory)
         auth.RefreshToken.ShouldNotBeNullOrWhiteSpace();
         auth.User.Email.ShouldBe("agent@itg.test");
         auth.User.OrganizationName.ShouldBe("ITG Group");
-        auth.User.Roles.ShouldContain("Support Agent");
+        auth.User.Roles.ShouldContain("Staff");
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class AuthenticationTests(ApiFactory factory)
     public async Task The_access_token_carries_the_data_scope_from_the_users_role()
     {
         // Same root cause as above: with no roles resolved, scope silently fell back
-        // to Own (1) instead of the Support Agent's Team (3).
+        // to Own (1) instead of Staff's Team (3).
         var auth = await SignInAsync("agent@itg.test");
 
         var token = new JwtSecurityTokenHandler().ReadJwtToken(auth.AccessToken);
@@ -162,7 +162,7 @@ public class AuthenticationTests(ApiFactory factory)
 
     [Theory]
     [InlineData("requester@itg.test", "Requester", 1)]
-    [InlineData("agent@itg.test", "Support Agent", 3)]
+    [InlineData("agent@itg.test", "Staff", 3)]
     [InlineData("lead@itg.test", "Team Lead", 3)]
     [InlineData("manager@itg.test", "Manager", 5)]
     [InlineData("superadmin@itg.test", "Super Admin", 6)]

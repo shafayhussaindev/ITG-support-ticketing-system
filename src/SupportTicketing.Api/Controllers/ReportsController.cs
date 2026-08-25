@@ -28,17 +28,17 @@ public sealed class ReportsController(IDispatcher dispatcher) : ControllerBase
         Ok(await dispatcher.QueryAsync(new GetSlaComplianceReportQuery(parameters), cancellationToken));
 
     /// <summary>Throughput and quality per agent.</summary>
-    [HttpGet("agent-performance")]
+    [HttpGet("staff-performance")]
     [HasPermission(Permissions.Reports.View)]
-    [SwaggerOperation(Summary = "Agent performance", Description =
+    [SwaggerOperation(Summary = "Staff performance", Description =
         "Resolved counts appear beside reopen counts, SLA breaches and satisfaction, "
         + "because volume on its own rewards closing tickets rather than fixing "
         + "problems. Callers who can see only their own queue receive the period "
         + "header and an empty table.")]
-    [ProducesResponseType<AgentPerformanceReport>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<AgentPerformanceReport>> AgentPerformance(
+    [ProducesResponseType<StaffPerformanceReport>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<StaffPerformanceReport>> AgentPerformance(
         [FromQuery] ReportQueryParameters parameters, CancellationToken cancellationToken) =>
-        Ok(await dispatcher.QueryAsync(new GetAgentPerformanceReportQuery(parameters), cancellationToken));
+        Ok(await dispatcher.QueryAsync(new GetStaffPerformanceReportQuery(parameters), cancellationToken));
 
     /// <summary>Raised against resolved over time, with the resulting backlog.</summary>
     /// <summary>How often requesters ask for more severity than they may declare.</summary>

@@ -198,9 +198,9 @@ public static class DevelopmentSeeder
         [
             ("requester",  "Rabia",  "Khan",     RoleNames.Requester,           null),
             ("requester2", "Omar",   "Siddiqui", RoleNames.Requester,           null),
-            ("agent",      "Ayesha", "Malik",    RoleNames.SupportAgent,        "ITSUP"),
-            ("agent2",     "Bilal",  "Ahmed",    RoleNames.SupportAgent,        "ITSUP"),
-            ("erpagent",   "Sana",   "Iqbal",    RoleNames.SupportAgent,        "ERPSUP"),
+            ("agent",      "Ayesha", "Malik",    RoleNames.Staff,        "ITSUP"),
+            ("agent2",     "Bilal",  "Ahmed",    RoleNames.Staff,        "ITSUP"),
+            ("erpagent",   "Sana",   "Iqbal",    RoleNames.Staff,        "ERPSUP"),
             ("lead",       "Imran",  "Sheikh",   RoleNames.TeamLead,            "ITSUP"),
             ("specialist", "Zainab", "Raza",     RoleNames.TechnicalSpecialist, "ERPSUP"),
             ("manager",    "Faisal", "Qureshi",  RoleNames.Manager,             null),
@@ -210,7 +210,7 @@ public static class DevelopmentSeeder
         :
         [
             ("requester", "Emma",   "Clarke", RoleNames.Requester,    null),
-            ("agent",     "Daniel", "Reid",   RoleNames.SupportAgent, "ITSUP"),
+            ("agent",     "Daniel", "Reid",   RoleNames.Staff, "ITSUP"),
             ("admin",     "Sophie", "Turner", RoleNames.Administrator, null)
         ];
 
@@ -704,7 +704,7 @@ public static class DevelopmentSeeder
         // most needs attention.
         var steps = new (int Level, int Threshold, EscalationRecipient Recipient, bool ChangeStatus)[]
         {
-            (1, 70, EscalationRecipient.AssignedAgent, false),
+            (1, 70, EscalationRecipient.AssignedStaff, false),
             (2, 90, EscalationRecipient.TeamLead, false),
             (3, 100, EscalationRecipient.TeamLead, true),
             (4, 120, EscalationRecipient.DepartmentManager, false),
@@ -737,10 +737,10 @@ public static class DevelopmentSeeder
         AppDbContext db, Guid orgId, Guid softwareCategoryId, Guid accessCategoryId, DateTime now)
     {
         // Ordered explicitly. An unordered FirstOrDefault picks whichever of the three
-        // seeded agents the database happens to return, so the draft's author varied
+        // seeded staff the database happens to return, so the draft's author varied
         // between runs and any test asserting on it was quietly flaky.
         var author = await db.Users
-            .Where(u => u.OrganizationId == orgId && u.JobTitle == RoleNames.SupportAgent)
+            .Where(u => u.OrganizationId == orgId && u.JobTitle == RoleNames.Staff)
             .OrderBy(u => u.Email)
             .FirstOrDefaultAsync();
 
@@ -869,7 +869,7 @@ public static class DevelopmentSeeder
     private static List<Role> BuildRoles(Guid orgId, DateTime now) =>
     [
         NewRole(orgId, RoleNames.Requester, DataScope.Own, 10, now),
-        NewRole(orgId, RoleNames.SupportAgent, DataScope.Team, 20, now),
+        NewRole(orgId, RoleNames.Staff, DataScope.Team, 20, now),
         NewRole(orgId, RoleNames.TechnicalSpecialist, DataScope.Team, 30, now),
         NewRole(orgId, RoleNames.TeamLead, DataScope.Team, 40, now),
         NewRole(orgId, RoleNames.Manager, DataScope.Organization, 50, now),

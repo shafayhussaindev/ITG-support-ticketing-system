@@ -43,7 +43,7 @@ public static class RoleAccountSeeder
         new(StringComparer.OrdinalIgnoreCase)
         {
             [RoleNames.Requester] = ("requester", "Test", "Requester"),
-            [RoleNames.SupportAgent] = ("agent", "Test", "Agent"),
+            [RoleNames.Staff] = ("agent", "Test", "Staff"),
             [RoleNames.TechnicalSpecialist] = ("specialist", "Test", "Specialist"),
             [RoleNames.TeamLead] = ("lead", "Test", "Lead"),
             [RoleNames.Manager] = ("manager", "Test", "Manager"),

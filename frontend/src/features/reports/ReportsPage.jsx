@@ -15,7 +15,7 @@ import s from './ReportsPage.module.css';
 const REPORTS = [
   { key: 'sla-compliance', label: 'SLA compliance' },
   { key: 'volume-trend', label: 'Volume and backlog' },
-  { key: 'agent-performance', label: 'Agent performance' },
+  { key: 'staff-performance', label: 'Staff performance' },
   { key: 'satisfaction', label: 'Satisfaction' },
 
   // Super Admin alone by default: every other report describes the desk, this one
@@ -260,14 +260,14 @@ function BreakdownCard({ title, rows }) {
   );
 }
 
-function AgentPerformanceReport({ data }) {
-  if (data.agents.length === 0) {
+function StaffPerformanceReport({ data }) {
+  if (data.staff.length === 0) {
     return (
       <EmptyState
         icon="◔"
         title="No individual figures for you"
         message={
-          'Per-agent performance needs visibility of a team. Your account can open '
+          'Per-person performance needs visibility of a team. Your account can open '
           + 'reports but sees only its own tickets, so there is nothing to break down.'
         }
       />
@@ -277,7 +277,7 @@ function AgentPerformanceReport({ data }) {
   return (
     <Card>
       <CardHeader
-        title="Agent performance"
+        title="Staff performance"
         subtitle="Volume shown beside reopens, breaches and satisfaction, because volume alone rewards the wrong thing"
       />
       <CardBody className={s.flush}>
@@ -285,7 +285,7 @@ function AgentPerformanceReport({ data }) {
           <table className={s.table}>
             <thead>
               <tr>
-                <th scope="col">Agent</th>
+                <th scope="col">Staff</th>
                 <th scope="col">Team</th>
                 <th scope="col">Open</th>
                 <th scope="col">Resolved</th>
@@ -298,28 +298,28 @@ function AgentPerformanceReport({ data }) {
               </tr>
             </thead>
             <tbody>
-              {data.agents.map((agent) => (
-                <tr key={agent.agentId}>
-                  <th scope="row">{agent.agentName}</th>
-                  <td className={s.muted}>{agent.teamName ?? '—'}</td>
-                  <td>{agent.openTickets}</td>
-                  <td>{agent.resolvedInPeriod}</td>
-                  <td>{agent.closedInPeriod}</td>
-                  <td>{agent.reopenedAfterResolution > 0
-                    ? <Badge tone="warning">{agent.reopenedAfterResolution}</Badge>
+              {data.staff.map((person) => (
+                <tr key={person.staffId}>
+                  <th scope="row">{person.staffName}</th>
+                  <td className={s.muted}>{person.teamName ?? '—'}</td>
+                  <td>{person.openTickets}</td>
+                  <td>{person.resolvedInPeriod}</td>
+                  <td>{person.closedInPeriod}</td>
+                  <td>{person.reopenedAfterResolution > 0
+                    ? <Badge tone="warning">{person.reopenedAfterResolution}</Badge>
                     : '—'}</td>
-                  <td>{agent.slaBreached > 0
-                    ? <Badge tone="danger">{agent.slaBreached}</Badge>
+                  <td>{person.slaBreached > 0
+                    ? <Badge tone="danger">{person.slaBreached}</Badge>
                     : '—'}</td>
-                  <td>{formatMinutes(agent.averageFirstResponseMinutes)}</td>
-                  <td>{formatMinutes(agent.averageResolutionMinutes)}</td>
+                  <td>{formatMinutes(person.averageFirstResponseMinutes)}</td>
+                  <td>{formatMinutes(person.averageResolutionMinutes)}</td>
                   <td>
-                    {agent.satisfactionResponses === 0 ? (
+                    {person.satisfactionResponses === 0 ? (
                       <span className={s.muted}>no responses</span>
                     ) : (
                       <>
-                        {agent.averageSatisfaction} / 5{' '}
-                        <span className={s.muted}>({agent.satisfactionResponses})</span>
+                        {person.averageSatisfaction} / 5{' '}
+                        <span className={s.muted}>({person.satisfactionResponses})</span>
                       </>
                     )}
                   </td>
@@ -378,24 +378,24 @@ function SatisfactionReport({ data }) {
         </Card>
       </div>
 
-      {data.byAgent.length > 0 ? (
+      {data.byStaff.length > 0 ? (
         <Card>
-          <CardHeader title="By agent" />
+          <CardHeader title="By staff member" />
           <CardBody className={s.flush}>
             <div className={s.tableWrap}>
               <table className={s.table}>
                 <thead>
                   <tr>
-                    <th scope="col">Agent</th>
+                    <th scope="col">Staff</th>
                     <th scope="col">Responses</th>
                     <th scope="col">Average</th>
                     <th scope="col">Three or below</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.byAgent.map((row) => (
-                    <tr key={row.agentId}>
-                      <th scope="row">{row.agentName}</th>
+                  {data.byStaff.map((row) => (
+                    <tr key={row.staffId}>
+                      <th scope="row">{row.staffName}</th>
                       <td>{row.responses}</td>
                       <td>{row.averageRating} / 5</td>
                       <td>{row.detractors > 0 ? <Badge tone="warning">{row.detractors}</Badge> : '—'}</td>
@@ -575,10 +575,10 @@ export function ReportsPage() {
       fn: () => reportsService.volumeTrend(filters),
       render: (data) => <VolumeTrendReport data={data} />,
     },
-    'agent-performance': {
-      key: reportKeys.agents(filters),
-      fn: () => reportsService.agentPerformance(filters),
-      render: (data) => <AgentPerformanceReport data={data} />,
+    'staff-performance': {
+      key: reportKeys.staff(filters),
+      fn: () => reportsService.staffPerformance(filters),
+      render: (data) => <StaffPerformanceReport data={data} />,
     },
     satisfaction: {
       key: reportKeys.satisfaction(filters),

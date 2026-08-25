@@ -71,13 +71,13 @@ public sealed class ListUsersQueryHandler(IAppDbContext db, ICurrentUser current
         // Open-ticket counts are computed in one grouped query rather than a
         // correlated subquery per row: the list is the screen an administrator uses
         // to decide who is overloaded, and N+1 here is felt immediately.
-        var openByAgent = await db.Tickets.AsNoTracking()
-            .Where(t => t.AssignedAgentId != null
+        var openByStaff = await db.Tickets.AsNoTracking()
+            .Where(t => t.AssignedStaffId != null
                         && t.Status != TicketStatus.Closed
                         && t.Status != TicketStatus.Cancelled)
-            .GroupBy(t => t.AssignedAgentId!.Value)
-            .Select(g => new { AgentId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.AgentId, x => x.Count, cancellationToken);
+            .GroupBy(t => t.AssignedStaffId!.Value)
+            .Select(g => new { StaffId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.StaffId, x => x.Count, cancellationToken);
 
         var rows = await users
             .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
@@ -117,7 +117,7 @@ public sealed class ListUsersQueryHandler(IAppDbContext db, ICurrentUser current
                     IsActive = u.IsActive,
                     LockoutEndUtc = u.LockoutEndUtc,
                     LastLoginAtUtc = u.LastLoginAtUtc,
-                    OpenTickets = openByAgent.GetValueOrDefault(u.Id),
+                    OpenTickets = openByStaff.GetValueOrDefault(u.Id),
                 })
             ],
             Page = page,
@@ -829,7 +829,7 @@ public sealed class DeleteUserCommandHandler(
     private static async Task<OwnedWork> CountOwnedWorkAsync(
         IAppDbContext db, Guid userId, CancellationToken cancellationToken) => new(
         await db.Tickets.IgnoreQueryFilters().CountAsync(t => t.RequesterId == userId, cancellationToken),
-        await db.Tickets.IgnoreQueryFilters().CountAsync(t => t.AssignedAgentId == userId, cancellationToken),
+        await db.Tickets.IgnoreQueryFilters().CountAsync(t => t.AssignedStaffId == userId, cancellationToken),
         await db.TicketComments.IgnoreQueryFilters().CountAsync(c => c.AuthorId == userId, cancellationToken),
         await db.KnowledgeArticles.IgnoreQueryFilters().CountAsync(a => a.AuthorId == userId, cancellationToken));
 }

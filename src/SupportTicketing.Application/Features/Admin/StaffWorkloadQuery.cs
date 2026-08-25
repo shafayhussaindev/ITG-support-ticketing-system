@@ -13,7 +13,7 @@ public sealed record StaffWorkloadQuery : IQuery<IReadOnlyList<StaffWorkloadRow>
 /// </summary>
 /// <remarks>
 /// <para>
-/// Deliberately not the agent performance report. That answers "how did last month go"
+/// Deliberately not the staff performance report. That answers "how did last month go"
 /// and is measured over a period; this answers "who can take the next ticket", which is
 /// a question about this moment and is the one an administrator asks before reassigning
 /// anything.
@@ -89,12 +89,12 @@ public sealed class StaffWorkloadQueryHandler(IAppDbContext db, ICurrentUser cur
         var ids = staff.Select(s => s.Id).ToList();
 
         var open = await db.Tickets.AsNoTracking()
-            .Where(t => t.AssignedAgentId != null
-                && ids.Contains(t.AssignedAgentId.Value)
+            .Where(t => t.AssignedStaffId != null
+                && ids.Contains(t.AssignedStaffId.Value)
                 && !Settled.Contains(t.Status))
             .Select(t => new
             {
-                UserId = t.AssignedAgentId!.Value,
+                UserId = t.AssignedStaffId!.Value,
                 t.Status,
                 t.Priority,
                 t.CreatedAtUtc,
@@ -104,12 +104,12 @@ public sealed class StaffWorkloadQueryHandler(IAppDbContext db, ICurrentUser cur
         var breached = await (
             from i in db.TicketSlaInstances.AsNoTracking()
             join t in db.Tickets.AsNoTracking() on i.TicketId equals t.Id
-            where t.AssignedAgentId != null
-                && ids.Contains(t.AssignedAgentId.Value)
+            where t.AssignedStaffId != null
+                && ids.Contains(t.AssignedStaffId.Value)
                 && !Settled.Contains(t.Status)
                 && (i.ResponseState == SlaTimerState.Breached
                     || i.ResolutionState == SlaTimerState.Breached)
-            select t.AssignedAgentId!.Value)
+            select t.AssignedStaffId!.Value)
             .ToListAsync(cancellationToken);
 
         var breachedByUser = breached

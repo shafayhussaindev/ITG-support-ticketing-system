@@ -135,14 +135,14 @@ public class ReportsAndAuditTests(ApiFactory factory)
         // configure the system rather than supervise the people using it.
         var admin = await SignInAsync("admin@itg.test");
 
-        var response = await admin.GetAsync("/api/v1/reports/agent-performance");
+        var response = await admin.GetAsync("/api/v1/reports/staff-performance");
 
         // Not a 403. The caller may open the report; there is simply nothing
         // individual in it for them. A 403 here would look like a broken screen.
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
 
-        var report = (await response.Content.ReadFromJsonAsync<AgentPerformanceReport>())!;
-        report.Agents.ShouldBeEmpty();
+        var report = (await response.Content.ReadFromJsonAsync<StaffPerformanceReport>())!;
+        report.Staff.ShouldBeEmpty();
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public class ReportsAndAuditTests(ApiFactory factory)
     [Theory]
     [InlineData("tickets")]
     [InlineData("sla-compliance")]
-    [InlineData("agent-performance")]
+    [InlineData("staff-performance")]
     [InlineData("satisfaction")]
     [InlineData("volume-trend")]
     [InlineData("customer-behaviour")]

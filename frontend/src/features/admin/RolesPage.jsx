@@ -11,7 +11,7 @@ const BLANK_ROLE = { name: '', description: '', defaultScope: 'Own' };
  * Turns the role ladder into the places a role can sit in it.
  *
  * An administrator knows their organization's hierarchy by name — a new role belongs
- * above the Support Agent, or below the Manager. They have no way of knowing that the
+ * above Staff, or below the Manager. They have no way of knowing that the
  * system stores that as the integer 45, nor should they: rank is an ordering hint with
  * no bearing on what a role may actually do, and a numeric field invites the reader to
  * assume otherwise. So the choice is offered the way it is actually thought about, and

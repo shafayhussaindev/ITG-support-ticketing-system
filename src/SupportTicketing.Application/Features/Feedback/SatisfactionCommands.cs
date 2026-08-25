@@ -20,8 +20,8 @@ public sealed class SubmitRatingCommandValidator : AbstractValidator<SubmitRatin
         RuleFor(x => x.Request.Rating).InclusiveBetween(1, 5);
         RuleFor(x => x.Request.ResolutionRating).InclusiveBetween(1, 5)
             .When(x => x.Request.ResolutionRating.HasValue);
-        RuleFor(x => x.Request.AgentRating).InclusiveBetween(1, 5)
-            .When(x => x.Request.AgentRating.HasValue);
+        RuleFor(x => x.Request.StaffRating).InclusiveBetween(1, 5)
+            .When(x => x.Request.StaffRating.HasValue);
         RuleFor(x => x.Request.Comment).MaximumLength(2000);
     }
 }
@@ -82,10 +82,10 @@ public sealed class SubmitRatingCommandHandler(
             RatedById = userId,
             Rating = request.Rating,
             ResolutionRating = request.ResolutionRating,
-            AgentRating = request.AgentRating,
+            StaffRating = request.StaffRating,
             Comment = string.IsNullOrWhiteSpace(request.Comment) ? null : request.Comment.Trim(),
-            // Copied now so agent reporting survives a later reassignment of the ticket.
-            RatedAgentId = ticket.AssignedAgentId,
+            // Copied now so staff reporting survives a later reassignment of the ticket.
+            RatedStaffId = ticket.AssignedStaffId,
             TeamId = ticket.AssignedTeamId,
             SubmittedAtUtc = now,
         };
@@ -97,7 +97,7 @@ public sealed class SubmitRatingCommandHandler(
         // already the system of record for it.
         await audit.WriteAsync(
             AuditAction.Created, nameof(SatisfactionRating), rating.Id, ticket.TicketNumber,
-            changes: new { rating.Rating, rating.ResolutionRating, rating.AgentRating, rating.IsDetractor },
+            changes: new { rating.Rating, rating.ResolutionRating, rating.StaffRating, rating.IsDetractor },
             reason: "Satisfaction rating submitted.",
             cancellationToken: cancellationToken);
 
@@ -109,10 +109,10 @@ public sealed class SubmitRatingCommandHandler(
             .FirstOrDefaultAsync(cancellationToken) ?? "Unknown";
 
         string? agentName = null;
-        if (rating.RatedAgentId is { } agentId)
+        if (rating.RatedStaffId is { } staffId)
         {
             agentName = await db.Users
-                .Where(u => u.Id == agentId)
+                .Where(u => u.Id == staffId)
                 .Select(u => u.FirstName + " " + u.LastName)
                 .FirstOrDefaultAsync(cancellationToken);
         }
@@ -123,10 +123,10 @@ public sealed class SubmitRatingCommandHandler(
             TicketId = rating.TicketId,
             Rating = rating.Rating,
             ResolutionRating = rating.ResolutionRating,
-            AgentRating = rating.AgentRating,
+            StaffRating = rating.StaffRating,
             Comment = rating.Comment,
             RatedByName = raterName,
-            RatedAgentName = agentName,
+            RatedStaffName = agentName,
             SubmittedAtUtc = rating.SubmittedAtUtc,
         };
     }
@@ -154,11 +154,11 @@ public sealed class GetTicketRatingQueryHandler(IAppDbContext db, ICurrentUser c
                 TicketId = r.TicketId,
                 Rating = r.Rating,
                 ResolutionRating = r.ResolutionRating,
-                AgentRating = r.AgentRating,
+                StaffRating = r.StaffRating,
                 Comment = r.Comment,
                 RatedByName = r.RatedBy!.FirstName + " " + r.RatedBy.LastName,
-                RatedAgentName = db.Users
-                    .Where(u => u.Id == r.RatedAgentId)
+                RatedStaffName = db.Users
+                    .Where(u => u.Id == r.RatedStaffId)
                     .Select(u => u.FirstName + " " + u.LastName)
                     .FirstOrDefault(),
                 SubmittedAtUtc = r.SubmittedAtUtc,

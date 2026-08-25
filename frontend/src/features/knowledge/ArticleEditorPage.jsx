@@ -289,7 +289,7 @@ export function ArticleEditorPage() {
                 ))}
               </select>
               <span className={s.hint}>
-                Also what the suggestion engine matches on when an agent opens a ticket
+                Also what the suggestion engine matches on when a staff member opens a ticket
                 in the same category.
               </span>
             </div>

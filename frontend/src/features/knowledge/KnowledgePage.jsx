@@ -147,7 +147,7 @@ export function KnowledgePage() {
                       </Badge>
                     ) : null}
                     {article.visibility === 'Internal' ? (
-                      // Marked plainly so an agent never pastes staff-only guidance
+                      // Marked plainly so a staff member never pastes staff-only guidance
                       // into a reply the requester will read.
                       <Badge tone="warning">Staff only</Badge>
                     ) : null}

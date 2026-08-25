@@ -12,7 +12,7 @@ namespace SupportTicketing.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// These endpoints hand out capability, so most of what is asserted here is what the
-/// system refuses: deleting a role somebody holds, removing an agent who still owns
+/// system refuses: deleting a role somebody holds, removing a staff member who still owns
 /// work, saving a matrix with a hole in it, writing a secret back as its own mask.
 /// </remarks>
 [Collection(nameof(ApiCollection))]
@@ -186,29 +186,29 @@ public class AdministrationTests(ApiFactory factory)
         var admin = await SignInAsync("admin@itg.test");
 
         var roles = await ReadAsync<IReadOnlyList<RoleResponse>>(await admin.GetAsync("/api/v1/admin/roles"));
-        var agentRole = roles.Single(r => r.Name == "Support Agent");
+        var staffRole = roles.Single(r => r.Name == "Staff");
 
-        agentRole.IsSystemRole.ShouldBeTrue();
+        staffRole.IsSystemRole.ShouldBeTrue();
 
-        var delete = await admin.DeleteAsync($"/api/v1/admin/roles/{agentRole.Id}");
+        var delete = await admin.DeleteAsync($"/api/v1/admin/roles/{staffRole.Id}");
         delete.StatusCode.ShouldBe(HttpStatusCode.Conflict);
 
         // Editing is allowed: the seeded roles are a starting point, not a contract.
-        var withExtra = agentRole.Permissions.Append("ticket.change_priority").Distinct().ToList();
+        var withExtra = staffRole.Permissions.Append("ticket.change_priority").Distinct().ToList();
 
         var updated = await ReadAsync<RoleResponse>(
-            await admin.PutAsJsonAsync($"/api/v1/admin/roles/{agentRole.Id}/permissions",
+            await admin.PutAsJsonAsync($"/api/v1/admin/roles/{staffRole.Id}/permissions",
                 new SetRolePermissionsRequest
                 {
                     PermissionKeys = withExtra,
-                    Reason = "Agents triage their own queue",
+                    Reason = "Staff triage their own queue",
                 }));
 
         updated.Permissions.ShouldContain("ticket.change_priority");
 
         // Put it back so the rest of the suite sees the seeded shape.
-        await admin.PutAsJsonAsync($"/api/v1/admin/roles/{agentRole.Id}/permissions",
-            new SetRolePermissionsRequest { PermissionKeys = agentRole.Permissions });
+        await admin.PutAsJsonAsync($"/api/v1/admin/roles/{staffRole.Id}/permissions",
+            new SetRolePermissionsRequest { PermissionKeys = staffRole.Permissions });
     }
 
     [Fact]
@@ -342,7 +342,7 @@ public class AdministrationTests(ApiFactory factory)
 
         var roles = await ReadAsync<IReadOnlyList<RoleResponse>>(await admin.GetAsync("/api/v1/admin/roles"));
         var requester = roles.Single(r => r.Name == "Requester");
-        var agent = roles.Single(r => r.Name == "Support Agent");
+        var agent = roles.Single(r => r.Name == "Staff");
 
         await admin.PutAsJsonAsync($"/api/v1/admin/users/{userId}/roles",
             new SetUserRolesRequest { RoleIds = [requester.Id, agent.Id] });

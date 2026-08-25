@@ -17,7 +17,7 @@ const LADDER = [
   { id: 'e', name: 'Manager', rank: 50 },
   { id: 'd', name: 'Team Lead', rank: 40 },
   { id: 'c', name: 'Technical Specialist', rank: 30 },
-  { id: 'b', name: 'Support Agent', rank: 20 },
+  { id: 'b', name: 'Staff', rank: 20 },
   { id: 'a', name: 'Requester', rank: 10 },
 ];
 

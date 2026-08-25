@@ -17,7 +17,7 @@ public sealed class TicketsController(IDispatcher dispatcher) : ControllerBase
     /// <summary>Lists tickets the caller is entitled to see, with filtering, sorting and paging.</summary>
     [HttpGet]
     [SwaggerOperation(Summary = "List tickets", Description =
-        "Rows are restricted by the caller's data scope: a requester sees their own, an agent sees "
+        "Rows are restricted by the caller's data scope: a requester sees their own, a staff member sees "
         + "their team's, a manager sees the organization's. The scope is derived from the token, "
         + "never from a query parameter.")]
     [ProducesResponseType<PagedResult<TicketListItemResponse>>(StatusCodes.Status200OK)]
@@ -71,7 +71,7 @@ public sealed class TicketsController(IDispatcher dispatcher) : ControllerBase
     [HttpPost("{id:guid}/assign")]
     [SwaggerOperation(Summary = "Assign a ticket", Description =
         "Records the previous and new owner, the method and the reason. Assigning an unowned "
-        + "ticket requires ticket.assign; taking one from another agent requires ticket.reassign.")]
+        + "ticket requires ticket.assign; taking one from another staff member requires ticket.reassign.")]
     [ProducesResponseType<TicketDetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<TicketDetailResponse>> Assign(

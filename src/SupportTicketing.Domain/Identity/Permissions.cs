@@ -157,7 +157,7 @@ public static class Permissions
 public static class RoleNames
 {
     public const string Requester = "Requester";
-    public const string SupportAgent = "Support Agent";
+    public const string Staff = "Staff";
     public const string TeamLead = "Team Lead";
     public const string TechnicalSpecialist = "Technical Specialist";
     public const string Manager = "Manager";
