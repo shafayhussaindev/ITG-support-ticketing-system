@@ -59,6 +59,80 @@ public sealed class EmailOptions
         Enabled
         && !string.IsNullOrWhiteSpace(Host)
         && !string.IsNullOrWhiteSpace(FromAddress);
+
+    /// <summary>
+    /// The account to authenticate as, falling back to the sending address.
+    /// </summary>
+    /// <remarks>
+    /// Gmail, Microsoft 365 and most hosted providers authenticate as the mailbox that
+    /// is sending, so a configuration with a password and no user name is almost always
+    /// an omission rather than a request for anonymous relay. Without this the sender
+    /// skipped authentication entirely and the server refused to relay — a failure that
+    /// reads as "the mail server rejected us" rather than "we never logged in".
+    /// </remarks>
+    public string? ResolvedUserName =>
+        !string.IsNullOrWhiteSpace(UserName) ? UserName
+        : !string.IsNullOrWhiteSpace(Password) ? FromAddress
+        : null;
+
+    /// <summary>
+    /// A description of what is obviously wrong with these settings, or null.
+    /// </summary>
+    /// <remarks>
+    /// Checked at startup and said once, plainly. A credential that was pasted inside
+    /// the angle brackets of an instruction template is refused by the provider with
+    /// nothing but "username and password not accepted", which sends people looking at
+    /// their account rather than at the value they stored. This one went unnoticed for
+    /// four days.
+    /// </remarks>
+    public string? ConfigurationProblem
+    {
+        get
+        {
+            if (!Enabled)
+            {
+                return null;
+            }
+
+            if (string.IsNullOrEmpty(Password))
+            {
+                // The failure that prompted all of this. A user name was set and the
+                // password never was, so every send authenticated with an empty string
+                // and the provider answered "username and password not accepted" —
+                // which reads as a wrong password rather than a missing one.
+                return string.IsNullOrWhiteSpace(UserName)
+                    ? null
+                    : $"Email:UserName is set to {UserName} but Email:Password is not set at "
+                      + "all. Every message will be refused. Run: dotnet user-secrets set "
+                      + "\"Email:Password\" \"your-app-password\" --project src/SupportTicketing.Api";
+            }
+
+            var trimmed = Password.Trim();
+
+            if (trimmed.StartsWith('<') && trimmed.EndsWith('>'))
+            {
+                return "Email:Password is wrapped in angle brackets. Those are placeholder "
+                     + "markers from the setup instructions, not part of the password. "
+                     + "Set it again without the < and >.";
+            }
+
+            if (trimmed.Length >= 2
+                && (trimmed[0] == '"' || trimmed[0] == '\'')
+                && trimmed[^1] == trimmed[0])
+            {
+                return "Email:Password is wrapped in quote characters. The shell kept them "
+                     + "as part of the value. Set it again without the quotes.";
+            }
+
+            if (string.IsNullOrWhiteSpace(UserName) && string.IsNullOrWhiteSpace(FromAddress))
+            {
+                return "Email:Password is set but there is no Email:UserName or "
+                     + "Email:FromAddress to authenticate as.";
+            }
+
+            return null;
+        }
+    }
 }
 
 public sealed class SmtpEmailSender(IOptions<EmailOptions> options, ILogger<SmtpEmailSender> logger)
@@ -67,6 +141,16 @@ public sealed class SmtpEmailSender(IOptions<EmailOptions> options, ILogger<Smtp
     private readonly EmailOptions _options = options.Value;
 
     public bool IsConfigured => _options.IsUsable;
+
+    public string? ConfigurationProblem => _options.ConfigurationProblem;
+
+    public string Describe() =>
+        $"host {_options.Host}:{_options.Port}, from {_options.FromAddress}, "
+        + $"authenticating as {_options.ResolvedUserName ?? "(nobody — no password set)"}, "
+        + $"password {(string.IsNullOrEmpty(_options.Password) ? "absent" : $"present, {_options.Password.Length} characters")}"
+        + (string.IsNullOrWhiteSpace(_options.RedirectAllTo)
+            ? string.Empty
+            : $", REDIRECTING ALL MAIL TO {_options.RedirectAllTo}");
 
     public async Task<EmailResult> SendAsync(OutboundEmail message, CancellationToken cancellationToken)
     {
@@ -100,9 +184,13 @@ public sealed class SmtpEmailSender(IOptions<EmailOptions> options, ILogger<Smtp
 
             await client.ConnectAsync(host, _options.Port, security, cancellationToken);
 
-            if (!string.IsNullOrWhiteSpace(_options.UserName))
+            // Resolved rather than read directly: a password with no user name meant
+            // no authentication at all, and a server that then refused to relay.
+            var userName = _options.ResolvedUserName;
+
+            if (!string.IsNullOrWhiteSpace(userName))
             {
-                await client.AuthenticateAsync(_options.UserName, _options.Password ?? string.Empty, cancellationToken);
+                await client.AuthenticateAsync(userName, _options.Password ?? string.Empty, cancellationToken);
             }
 
             await client.SendAsync(mime, cancellationToken);
@@ -167,6 +255,10 @@ public sealed class SmtpEmailSender(IOptions<EmailOptions> options, ILogger<Smtp
 public sealed class DisabledEmailSender : IEmailSender
 {
     public bool IsConfigured => false;
+
+    public string? ConfigurationProblem => null;
+
+    public string Describe() => "disabled";
 
     public Task<EmailResult> SendAsync(OutboundEmail message, CancellationToken cancellationToken) =>
         Task.FromResult(EmailResult.Permanent("Email is not enabled."));

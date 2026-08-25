@@ -44,5 +44,22 @@ public interface IEmailSender
     /// <summary>False when no SMTP server is configured, so the dispatcher can stand down.</summary>
     bool IsConfigured { get; }
 
+    /// <summary>
+    /// What is obviously wrong with the settings, or null when nothing is.
+    /// </summary>
+    /// <remarks>
+    /// Said once at startup rather than discovered from a delivery table days later. A
+    /// provider rejecting a malformed credential says only "username and password not
+    /// accepted", which sends people to their account settings instead of to the value
+    /// they actually stored.
+    /// </remarks>
+    string? ConfigurationProblem { get; }
+
+    /// <summary>
+    /// The effective settings, for the startup log. Never includes the password itself —
+    /// only whether one is present, which is the part that diagnoses anything.
+    /// </summary>
+    string Describe();
+
     Task<EmailResult> SendAsync(OutboundEmail message, CancellationToken cancellationToken);
 }

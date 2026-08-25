@@ -76,6 +76,21 @@ public sealed class EmailDispatchService(
 
                 return;
             }
+
+            // Said once, at startup, so "why did nobody get an email" is answerable
+            // from the log rather than from the delivery table. No secret is included:
+            // whether a password is present is diagnostic, its value is not.
+            logger.LogInformation("Email is configured as: {Description}", sender.Describe());
+
+            // Configured, but with something in it that will be refused every time.
+            // Worth shouting about at startup: the alternative is a queue quietly
+            // dead-lettering everything while the desk assumes mail is going out.
+            if (sender.ConfigurationProblem is { } problem)
+            {
+                logger.LogError(
+                    "Email is configured but will be rejected: {Problem} No mail will be "
+                    + "delivered until this is corrected.", problem);
+            }
         }
 
         logger.LogInformation(
