@@ -97,10 +97,17 @@ public sealed class SlaAudience(IAppDbContext db, INotificationService notificat
                 continue;
             }
 
-            // Supervision reads a list; it does not need an inbox item per event. The
-            // exception is a genuine emergency, which is rare enough to still mean
-            // something when it does arrive.
-            var worthAnEmail = severity == NotificationSeverity.Critical;
+            // Supervision reads a list; it does not need an inbox item per event —
+            // an email per SLA warning would train everyone to filter the lot.
+            //
+            // An escalation is the exception, and always emails. It is not the clock
+            // ticking, it is the ladder having been climbed because the clock ran out,
+            // and by then the people who can reassign or intervene are the point. A
+            // level-two escalation at 97% of budget is Warning severity, so keying this
+            // on Critical alone meant most escalations reached nobody but the person
+            // already holding the ticket.
+            var worthAnEmail = eventType == NotificationEventType.TicketEscalated
+                               || severity == NotificationSeverity.Critical;
 
             raised += await RaiseAsync(ticket, supervisorId, eventType, severity, title,
                 Unassigned(ticket, body), $"{deduplicationKey}:supervisor",
