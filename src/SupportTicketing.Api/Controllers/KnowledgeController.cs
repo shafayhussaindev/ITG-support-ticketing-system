@@ -73,10 +73,13 @@ public sealed class KnowledgeController(IDispatcher dispatcher) : ControllerBase
     }
 
     [HttpPut("articles/{id:guid}")]
-    [HasPermission(Permissions.Knowledge.Edit)]
     [SwaggerOperation(Summary = "Edit an article", Description =
-        "Writes a new version row so the wording that was live when a ticket was "
+        "Requires knowledge.edit, except on your own unpublished draft, which its author "
+        + "may always correct. Judged in the handler rather than by an attribute because "
+        + "the answer depends on who wrote the article and whether it is published. "
+        + "Writes a new version row so the wording that was live when a ticket was "
         + "resolved stays recoverable.")]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ArticleDetailResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<ArticleDetailResponse>> Update(
         Guid id, [FromBody] UpdateArticleRequest request, CancellationToken cancellationToken) =>

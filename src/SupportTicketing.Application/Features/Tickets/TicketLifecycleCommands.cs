@@ -327,7 +327,14 @@ public sealed class ChangeTicketStatusCommandHandler(
             }
 
             ticket.CancellationReason = command.Request.Reason;
-            ticket.ClosureReason = ClosureReason.CancelledByRequester;
+
+            // Attributed to the requester only when the requester actually did it. This
+            // was unconditional, so a manager cancelling a duplicate was recorded as the
+            // requester having withdrawn it. The written reason above is mandatory and
+            // carries the meaning either way.
+            ticket.ClosureReason = ticket.RequesterId == currentUser.UserId
+                ? ClosureReason.CancelledByRequester
+                : null;
         }
 
         TicketMutation.Transition(db, ticket, target, currentUser, now, command.Request.Reason);
@@ -569,8 +576,14 @@ public sealed class CloseTicketCommandHandler(
 
         ticket.ClosedAtUtc = now;
         ticket.ClosedById = currentUser.UserId;
+        // Recorded only when it is actually known. Both arms of this used to yield
+        // ResolvedConfirmed, so a ticket support closed as a duplicate or out of scope
+        // claimed the requester had confirmed a resolution they never saw — and closure
+        // reason is precisely the field somebody reads to ask why work stops here.
+        // Null is the honest answer when nobody said; the status history still records
+        // who closed it and the comment still says why.
         ticket.ClosureReason = ParseClosureReason(command.Request.ClosureReason)
-            ?? (isRequesterConfirming ? ClosureReason.ResolvedConfirmed : ClosureReason.ResolvedConfirmed);
+            ?? (isRequesterConfirming ? ClosureReason.ResolvedConfirmed : null);
 
         var reason = command.Request.Comment
             ?? (isRequesterConfirming ? "Requester confirmed the resolution." : "Closed by support.");

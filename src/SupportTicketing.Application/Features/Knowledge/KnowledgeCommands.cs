@@ -146,12 +146,24 @@ public sealed class UpdateArticleCommandHandler(
     public async Task<ArticleDetailResponse> HandleAsync(
         UpdateArticleCommand command, CancellationToken cancellationToken)
     {
-        currentUser.Require(Permissions.Knowledge.Edit);
-
         var article = await db.KnowledgeArticles
             .AsTracking()
             .FirstOrDefaultAsync(a => a.Id == command.Id, cancellationToken)
             ?? throw new NotFoundException("Article", command.Id);
+
+        // Your own unpublished draft is always yours to change. Editing generally is a
+        // separate permission because it covers everybody else's work, including what is
+        // already published — but gating a draft behind it meant somebody who could
+        // write an article could not fix a typo in it, or move it to review, and drafts
+        // stalled on the first mistake. This mirrors the read rule, which already treats
+        // an author as able to see their own unpublished work.
+        var isOwnDraft = article.AuthorId == currentUser.UserId
+                         && article.Status is ArticleStatus.Draft or ArticleStatus.InReview;
+
+        if (!isOwnDraft)
+        {
+            currentUser.Require(Permissions.Knowledge.Edit);
+        }
 
         var request = command.Request;
         var now = clock.UtcNow;
@@ -218,17 +230,28 @@ public sealed class ChangeArticleStatusCommandHandler(
             throw new BusinessRuleException("knowledge.unknown_status", "That is not a recognised article status.");
         }
 
-        currentUser.Require(target switch
-        {
-            ArticleStatus.Published => Permissions.Knowledge.Publish,
-            ArticleStatus.Archived => Permissions.Knowledge.Archive,
-            _ => Permissions.Knowledge.Edit,
-        });
-
         var article = await db.KnowledgeArticles
             .AsTracking()
             .FirstOrDefaultAsync(a => a.Id == command.Id, cancellationToken)
             ?? throw new NotFoundException("Article", command.Id);
+
+        // Publishing and archiving always carry their own permission: they change what
+        // the organization is telling people. Moving your own unfinished draft between
+        // draft and review changes nothing anybody can read, so its author may do it —
+        // otherwise somebody who could write an article could never submit it.
+        var isOwnUnpublished = article.AuthorId == currentUser.UserId
+                               && article.Status is ArticleStatus.Draft or ArticleStatus.InReview
+                               && target is ArticleStatus.Draft or ArticleStatus.InReview;
+
+        if (!isOwnUnpublished)
+        {
+            currentUser.Require(target switch
+            {
+                ArticleStatus.Published => Permissions.Knowledge.Publish,
+                ArticleStatus.Archived => Permissions.Knowledge.Archive,
+                _ => Permissions.Knowledge.Edit,
+            });
+        }
 
         if (article.Status == target)
         {
