@@ -47,7 +47,8 @@ public sealed class RequesterAudience(INotificationService notifications, ICurre
             ticket,
             NotificationEventType.TicketCreated,
             $"We have your request: {ticket.TicketNumber}",
-            $"\"{ticket.Subject}\" has been logged and is waiting to be picked up. "
+            $"\"{ticket.Subject}\" has been logged as {ticket.TicketNumber} and is "
+            + "waiting to be picked up. Quote that number in any conversation about it. "
             + "You will hear from us here as it moves.",
             $"requester-created:{ticket.Id}",
             cancellationToken);
@@ -103,7 +104,14 @@ public sealed class RequesterAudience(INotificationService notifications, ICurre
     {
         // A requester acting on their own ticket — closing it, replying to themselves —
         // does not need telling what they just did.
-        if (ticket.RequesterId == currentUser.UserId)
+        //
+        // Raising one is the exception. The acknowledgement is not a repetition of their
+        // own action, it is the receipt: it carries the ticket number they will quote,
+        // confirms the request actually landed, and is the only thing they have to show
+        // for it if nothing happens. Suppressing it meant that anybody raising their own
+        // ticket — which is nearly everybody — got no email at all.
+        if (ticket.RequesterId == currentUser.UserId
+            && eventType != NotificationEventType.TicketCreated)
         {
             return;
         }

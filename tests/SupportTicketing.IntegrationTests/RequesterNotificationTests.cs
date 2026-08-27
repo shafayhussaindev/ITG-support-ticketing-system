@@ -197,16 +197,40 @@ public class RequesterNotificationTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task A_requester_is_not_told_about_their_own_action()
+    public async Task Raising_your_own_ticket_still_gets_you_a_receipt()
     {
         var requester = await SignInAsync("requester@itg.test");
 
-        var ticket = await RaiseAsync(requester, "I raised this myself");
+        var ticket = await RaiseAsync(requester, "I raised this one myself");
 
-        // They just did it. Telling them is the system repeating back what they typed.
+        // Nearly everybody raises their own ticket, and every one of them used to get
+        // no email at all: the acknowledgement was suppressed as "your own action".
+        // It is not a repetition of what they did, it is the receipt.
+        var told = (await InboxAsync(requester))
+            .FirstOrDefault(n => n.TicketNumber == ticket.TicketNumber
+                                 && n.EventType == "TicketCreated");
+
+        told.ShouldNotBeNull("raising a ticket should be acknowledged to the person who raised it");
+        told.Body.ShouldContain(ticket.TicketNumber);
+    }
+
+    [Fact]
+    public async Task A_requester_is_not_told_about_their_own_reply()
+    {
+        var requester = await SignInAsync("requester@itg.test");
+
+        var ticket = await RaiseAsync(requester, "I replied to myself");
+
+        await requester.PostAsJsonAsync(
+            $"/api/v1/tickets/{ticket.Id}/comments",
+            new AddCommentRequest { Body = "Adding a detail I forgot.", IsInternal = false });
+
+        // They just typed it. Emailing it back is the system repeating itself — which
+        // is why the self-action suppression exists at all, and why it still applies to
+        // everything except the initial acknowledgement.
         (await InboxAsync(requester))
             .ShouldNotContain(n => n.TicketNumber == ticket.TicketNumber
-                                   && n.EventType == "TicketCreated");
+                                   && n.EventType == "TicketReplied");
     }
 }
 
