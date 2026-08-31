@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  IIS configuration for the API.
+
+  `dotnet publish` generates a basic web.config of its own. This file is a template
+  for the one you actually want in production: copy it into the publish output,
+  rename it to web.config, and it replaces the generated one.
+
+  Requires the ASP.NET Core Hosting Bundle on the server — not just the runtime.
+  Without it IIS cannot start a .NET process at all and every request returns 500.19.
+  https://dotnet.microsoft.com/download/dotnet/10.0
+
+  The application pool must be set to "No Managed Code". It is not running on the
+  .NET Framework; IIS is only forwarding requests to a Kestrel process.
+-->
+<configuration>
+  <location path="." inheritInChildApplications="false">
+    <system.webServer>
+
+      <handlers>
+        <add name="aspNetCore" path="*" verb="*"
+             modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+      </handlers>
+
+      <!--
+        hostingModel="inprocess" runs the application inside the IIS worker process,
+        which is faster and the usual choice. Switch to "outofprocess" only if you
+        hit a specific incompatibility.
+
+        stdoutLogEnabled is false because the application already writes structured
+        logs through Serilog. Turn it on temporarily if the process fails to start
+        at all — that is the one failure Serilog cannot report, because it happens
+        before logging is configured. Turn it off again afterwards: the file grows
+        without limit and is never rotated.
+      -->
+      <aspNetCore processPath="dotnet"
+                  arguments=".\SupportTicketing.Api.dll"
+                  stdoutLogEnabled="false"
+                  stdoutLogFile=".\logs\stdout"
+                  hostingModel="inprocess">
+
+        <!--
+          Configuration belongs here or in the application pool's environment, never
+          in appsettings.json — that file is in source control.
+
+          A double underscore maps to configuration nesting, so Jwt__SigningKey
+          becomes Jwt:SigningKey.
+
+          These are placeholders. Replace every one. The application refuses to start
+          in Production if the signing key is the documented example, if CORS is
+          empty, or if the connection string disables certificate validation against
+          a remote database.
+        -->
+        <environmentVariables>
+          <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Production" />
+
+          <environmentVariable name="ConnectionStrings__SupportTicketingDb"
+                               value="Server=DBHOST;Database=SupportTicketing;User Id=supportdesk;Password=REPLACE_ME;Encrypt=True" />
+
+          <!-- At least 32 characters, generated randomly. Not the one from the docs. -->
+          <environmentVariable name="Jwt__SigningKey" value="REPLACE_ME" />
+
+          <!--
+            The exact origin the front end is served from. No wildcard: credentials
+            are sent with these requests, and a browser will not accept one.
+
+            If the front end and the API share a hostname through a reverse proxy,
+            this is that single hostname and there is no cross-origin request at all.
+          -->
+          <environmentVariable name="Cors__AllowedOrigins__0" value="https://support.yourcompany.com" />
+
+          <!-- First run only. Ignored once an organization exists. -->
+          <environmentVariable name="Bootstrap__Organization__Name" value="Your Company Limited" />
+          <environmentVariable name="Bootstrap__Organization__Code" value="YCL" />
+          <environmentVariable name="Bootstrap__Organization__TimeZone" value="Asia/Karachi" />
+          <environmentVariable name="Bootstrap__Administrator__Email" value="it.manager@yourcompany.com" />
+
+          <!--
+            Optional. Without these the system runs normally and notifications stay
+            in the application. Send from a shared mailbox, never a person's account.
+          -->
+          <!--
+          <environmentVariable name="Email__Enabled" value="true" />
+          <environmentVariable name="Email__Host" value="smtp.office365.com" />
+          <environmentVariable name="Email__Port" value="587" />
+          <environmentVariable name="Email__UseStartTls" value="true" />
+          <environmentVariable name="Email__UserName" value="support@yourcompany.com" />
+          <environmentVariable name="Email__Password" value="REPLACE_ME" />
+          <environmentVariable name="Email__FromAddress" value="support@yourcompany.com" />
+          <environmentVariable name="Email__FromName" value="Support Desk" />
+          -->
+
+          <!--
+            Set these only when IIS sits behind another proxy, so the audit log
+            records the caller's real address. Leave them unset when IIS is the edge:
+            accepting X-Forwarded-For from an arbitrary caller would let that caller
+            choose what the audit log says about them.
+          -->
+          <!--
+          <environmentVariable name="ForwardedHeaders__KnownProxies__0" value="10.0.0.5" />
+          -->
+        </environmentVariables>
+      </aspNetCore>
+
+      <security>
+        <requestFiltering>
+          <!--
+            Attachments are capped at 100 MB by the application. IIS refuses anything
+            over ~28 MB by default and does so before the request reaches the
+            application, so the user sees a bare IIS error rather than the message
+            the application would have given.
+
+            200 MB here matches the limit the upload endpoint declares, deliberately
+            above the policy limit so the application is the thing that enforces it
+            and can explain itself.
+          -->
+          <requestLimits maxAllowedContentLength="209715200" />
+        </requestFiltering>
+      </security>
+
+      <httpProtocol>
+        <customHeaders>
+          <remove name="X-Powered-By" />
+          <add name="X-Content-Type-Options" value="nosniff" />
+          <add name="Referrer-Policy" value="no-referrer" />
+        </customHeaders>
+      </httpProtocol>
+
+      <!--
+        IIS serves its own error pages for status codes the application returns,
+        replacing the problem+json body the client is expecting with HTML. The API
+        explains its own failures; let them through.
+      -->
+      <httpErrors existingResponse="PassThrough" />
+
+    </system.webServer>
+  </location>
+</configuration>
