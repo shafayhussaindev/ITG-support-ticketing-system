@@ -1,5 +1,8 @@
 # Deployment
 
+> New to this system? Read [`HANDOVER.md`](../HANDOVER.md) first — it is the
+> ordered walk-through. This page is the reference behind it.
+
 How to stand this system up on a server, and how to keep it running.
 
 Written to be host-agnostic: the steps are the same whether the application runs under
@@ -373,11 +376,24 @@ random values stored as hashes, not signed by this key.
 
 State these plainly to the client rather than discovering them together later.
 
-- **Email is not sent.** Notifications and escalations are in-app only.
 - **Email intake does not exist.** Nothing reads a mailbox; tickets arrive through the
-  portal or the API.
-- **Attachments cannot be uploaded.** The table exists; the endpoints do not.
+  portal or the API. Outbound email does work — see section 2b.
+- **Two-factor authentication cannot be enrolled.** The sign-in check exists; the screen
+  to register an authenticator app does not. Accounts are password-only.
+- **No malware scanning.** Every upload is stored with the scan state `Skipped`. The
+  hooks exist and nothing is connected to them.
+- **@-mentions notify nobody.** The mention is stored and no notification is raised.
+- **Reopening a ticket does not alert the assignee.** They find out by looking.
+- **Nothing auto-closes a ticket** whose requester stopped responding. The workflow
+  permits it and the closure reason exists, but no job performs it.
+- **No screen for escalation ladders.** The default four rungs are created at first
+  start and can only be changed in the database.
+- **Routing is three fallbacks, not a rules engine** — the subcategory's default team,
+  then the category's, then the affected application's owning team. The automatic
+  assignment strategies named in `AssignmentMethod` are not implemented; assignment is
+  manual or self-service.
 - **Approvals and parent–child tickets** are not implemented.
-- **No Docker configuration**, and **no CI pipeline**.
+- **No CI pipeline.** Docker files exist (`docker-compose.yml` and a Dockerfile per
+  service); the API image builds, the frontend image has not been verified.
 - **The AI provider path has never run against the live API.** Every test exercises the
   unavailable branch. It is written and reviewed, not verified.
