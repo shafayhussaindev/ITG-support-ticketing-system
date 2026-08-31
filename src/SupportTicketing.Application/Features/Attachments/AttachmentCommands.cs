@@ -236,6 +236,17 @@ public sealed class DownloadAttachmentQueryHandler(
                 "This file was flagged by a malware scan and cannot be downloaded.");
         }
 
+        // Anything else the entity does not consider downloadable — a scan still in
+        // progress, or one that failed — is refused rather than served on the grounds
+        // that it was not positively identified as bad. Today every file is Skipped and
+        // this never fires; it starts mattering the day a scanner is connected.
+        if (!attachment.IsDownloadable)
+        {
+            throw new ConflictException(
+                "attachment_not_scanned",
+                "This file has not finished being checked yet. Try again shortly.");
+        }
+
         var content = await storage.OpenAsync(attachment.StoragePath, cancellationToken);
 
         return new AttachmentDownload(
@@ -335,7 +346,11 @@ internal static class AttachmentProjection
         ContentType = a.ContentType,
         SizeBytes = a.SizeBytes,
         ScanState = a.ScanState.ToString(),
-        IsDownloadable = a.ScanState != AttachmentScanState.Infected,
+        // The entity's own rule rather than a second copy of it. This said
+        // "anything not infected", which also offered a file still being scanned
+        // or one whose scan failed — while the ticket page, using the domain
+        // property, hid the same file. Two lists disagreeing about one attachment.
+        IsDownloadable = a.IsDownloadable,
         IsInternalOnly = a.IsInternalOnly,
         UploadedByName = uploaderName,
         CreatedAtUtc = a.CreatedAtUtc,

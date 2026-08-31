@@ -147,7 +147,12 @@ public static class TicketProjection
                 TicketStatus.Cancelled => user.Has(Permissions.Tickets.Cancel)
                                           || (isRequester && user.Has(Permissions.Tickets.Cancel)),
                 TicketStatus.Assigned => user.Has(Permissions.Tickets.Assign),
-                TicketStatus.Escalated => user.Has(Permissions.Escalations.Manage),
+                // Matches what the endpoint actually requires. This asked for
+                // escalation.manage, which staff do not hold — so the button was
+                // hidden from people the server would have accepted. Raising a
+                // ticket for attention is asking for help, not managing the
+                // escalation queue, and the two permissions are not the same act.
+                TicketStatus.Escalated => user.Has(Permissions.Tickets.ChangeStatus),
                 _ => user.Has(Permissions.Tickets.ChangeStatus),
             })
             .Select(target => target.ToString())
