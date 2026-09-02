@@ -1,0 +1,16 @@
+# Restored from package-lock.json by whoever builds. The tree is platform-specific
+# (native bindings, executable shims) and must never be committed.
+node_modules/
+
+# Build output.
+dist/
+dist-*/
+.vite/
+
+# Local configuration. Only the example is shared.
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store
