@@ -344,7 +344,10 @@ app.Use(async (context, next) =>
     await next();
 });
 
-if (app.Environment.IsDevelopment())
+// On in Development, otherwise off unless somebody asks. The document publishes the
+// entire API surface, so on a host the public can reach it should stay off; on an
+// internal or staging host it is the quickest way to see what exists and try it.
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
     app.UseSwaggerUI(options =>
@@ -353,7 +356,8 @@ if (app.Environment.IsDevelopment())
         options.DocumentTitle = "Support Ticketing API";
     });
 }
-else
+
+if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
 }

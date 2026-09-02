@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
   IIS configuration for the API.
 
@@ -88,6 +88,15 @@
           <environmentVariable name="Email__Password" value="REPLACE_ME" />
           <environmentVariable name="Email__FromAddress" value="support@yourcompany.com" />
           <environmentVariable name="Email__FromName" value="Support Desk" />
+          -->
+
+          <!--
+            Interactive API documentation at /swagger. Off by default outside
+            Development because it publishes the whole API surface. Turn it on
+            for an internal or staging host; leave it off where the public can reach.
+          -->
+          <!--
+          <environmentVariable name="Swagger__Enabled" value="true" />
           -->
 
           <!--
