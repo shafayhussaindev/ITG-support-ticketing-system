@@ -136,6 +136,44 @@ security policy that permits no inline script.
 > with it.** Replicate them in `web.config` or at the CDN, or that protection is
 > silently gone.
 
+### If the API is on IIS
+
+`deploy/iis/Deploy-Api.ps1` does the whole server side in one elevated run: pool,
+site, permissions, SQL login, health check, and the second restart. Read
+`deploy/iis/README.md` first. Three things it protects you from, which are worth
+knowing even if you set IIS up by hand:
+
+- **Never copy `web.config` from your machine over the server's.** `dotnet publish`
+  generates a bare one; the server's holds the connection string, signing key and
+  CORS list. The script keeps the server's copy on every run after the first.
+- **Uploads and logs go outside the web root** (`Storage__RootPath`,
+  `Serilog__WriteTo__1__Args__path`). Inside it, IIS would serve uploads directly,
+  bypassing every authorisation check, and the next deploy would delete the logs.
+- **The application pool must not idle out.** The email dispatcher and SLA scanner
+  are background services; IIS's default stops the worker after twenty quiet
+  minutes and both silently stop with it.
+
+Swagger is off outside Development. `Swagger__Enabled=true` turns it on for an
+internal host; leave it off anywhere the public can reach.
+
+### If the front end is on Vercel
+
+Vercel builds from the repository. Set **Root Directory** to `frontend` in the
+project settings, and set the two build-time variables there:
+
+```
+VITE_API_BASE_URL=https://<api host>/api/v1
+VITE_SIGNALR_URL=https://<api host>/hubs
+```
+
+They are compiled into the bundle, so changing them means redeploying. Then add
+the Vercel origin — `https://<project>.vercel.app`, no trailing slash — to
+`Cors__AllowedOrigins__N` on the API. The API must be reachable over HTTPS from the
+public internet for this to work at all; a browser on a Vercel page cannot reach a
+server that only exists on an office network.
+
+`frontend/vercel.json` already routes deep links to `index.html`.
+
 ### 6. Start it, and capture the password
 
 On first start the application creates the permission catalogue, the seven system
@@ -244,6 +282,26 @@ handbook covers these for end users too.
 - **The AI provider path has never run against a live API.** Every test exercises the
   unavailable branch. It is written and reviewed, not verified. It stays off unless
   an administrator supplies a key.
+
+---
+
+## Making changes after go-live
+
+Two loops, and they are not the same speed.
+
+**Front end.** Edit under `frontend/src`, run `npm test` and `npm run lint`, commit,
+push. Vercel builds and deploys on its own.
+
+**API.** Edit, run `dotnet test -c Release` (it must stay green), `dotnet publish`,
+then on the server: back up the database, apply migrations if the change has any,
+run `deploy/iis/Deploy-Api.ps1` with the new payload. `docs/DEPLOYMENT.md`
+section 7 is the ordered version.
+
+If a front-end change needs a new API endpoint, deploy the API first. A front end
+calling an endpoint that does not exist yet fails in the browser, not on the server.
+
+Never patch a file on the server. It is lost on the next deploy and invisible to
+the repository.
 
 ---
 

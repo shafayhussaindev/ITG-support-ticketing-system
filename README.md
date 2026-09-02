@@ -638,14 +638,23 @@ query filters — an in-memory double would have passed while the API was broken
   it, because nothing can send the confirmation. They must supply their password and
   the change is audited with both addresses, but somebody can set an address they do
   not own.
-- **Approvals and parent–child tickets**, and **SMTP delivery** — notifications are
-  stored and shown in the app, but nothing is emailed, so an escalation reaches only
-  somebody who is already looking.
+- **Approvals and parent–child tickets.**
 - **Scheduled report delivery.** Reports are pulled on demand and exported by hand;
   nothing emails a weekly summary.
 
 ### Known limitations
 
+- **Five screens copy server data into local draft state inside an effect** (the AI
+  settings, catalog and article editor pages, and the app layout's drawer). React's
+  `react-hooks/set-state-in-effect` rule flags this; it is switched off in
+  `frontend/eslint.config.js` with the reason recorded there. The pattern works; a
+  key-reset or derived-state rewrite would be cleaner. Turn the rule back on when
+  those are done.
+- **The role test accounts need a password you set.** `Seed:RoleAccountPassword` is no
+  longer in `appsettings.Development.json`, because that file is in source control.
+  Set it once with `dotnet user-secrets set "Seed:RoleAccountPassword" "<yours>"
+  --project src/SupportTicketing.Api`; without it the seeder refuses to invent one and
+  skips. Accounts already created keep their existing password.
 - **The OpenAI code path has never run against the live API.** No key is configured on
   this machine, so every AI test exercises the unavailable branch — which is the branch
   that matters for correctness, but the success path is unproven against a real
