@@ -161,7 +161,7 @@ function RoleForm({ role, roles, onSave, onCancel, saving, error }) {
       </label>
 
       <p className={s.hint}>
-        Scope decides which rows the role's permissions may touch — a different
+        Scope decides which rows the role&apos;s permissions may touch — a different
         question from which actions it may perform. Someone with ticket.view_team and
         an Own scope sees only their own tickets, which is usually not what was meant.
       </p>

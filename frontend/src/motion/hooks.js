@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { DURATION, EASE, animate, countTo, gsap, reveal, revealList, shouldSkipMotion } from './motion';
 
 /**

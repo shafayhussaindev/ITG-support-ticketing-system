@@ -155,7 +155,7 @@ function AddMember({ team, reference, onAdd, saving }) {
       </div>
 
       <p className={s.hint}>
-        Capacity weight is the member's relative share of routed work. Zero keeps
+        Capacity weight is the member&apos;s relative share of routed work. Zero keeps
         someone on the team but out of the rotation — right for a part-timer or
         somebody on secondment.
       </p>

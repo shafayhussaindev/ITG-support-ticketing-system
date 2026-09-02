@@ -9,7 +9,7 @@ import {
   Badge, Button, Card, CardBody, CardHeader, ConfirmDialog,
   EmptyState, ErrorState, LoadingState,
 } from '@/components/ui';
-import { PriorityBadge, StatusBadge, TypeBadge, humanizeStatus } from '@/components/ui/TicketBadges';
+import { PriorityBadge, StatusBadge, TypeBadge } from '@/components/ui/TicketBadges';
 import { formatDateTime, formatRelative } from '@/utils/datetime';
 import { Conversation } from './Conversation';
 import { SlaPanel } from './SlaPanel';
@@ -113,7 +113,6 @@ export function TicketDetailPage() {
 
   const ticket = ticketQuery.data;
   const isRequester = ticket.requesterId === user?.id;
-  const isAssignee = ticket.assignedStaffId === user?.id;
   const canResolve = can('ticket.resolve') && !['Resolved', 'Closed', 'Cancelled'].includes(ticket.status);
   const canAccept = can('ticket.accept') && ['New', 'Assigned', 'Reopened'].includes(ticket.status);
   const canConfirm = isRequester && ticket.status === 'Resolved';

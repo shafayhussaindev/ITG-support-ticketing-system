@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/services/apiClient';
 import { ticketKeys, ticketService } from '@/services/ticketService';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Button, Card, CardBody, CardHeader, Field } from '@/components/ui';
 import { PriorityBadge } from '@/components/ui/TicketBadges';
@@ -59,7 +58,6 @@ const URGENCY_HELP = {
 export function CreateTicketPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { can } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: categories = [] } = useQuery({
@@ -333,7 +331,7 @@ export function CreateTicketPage() {
                 <span className={s.previewLabel}>Calculated priority</span>
                 <PriorityBadge priority={preview} />
                 <p className={s.previewNote}>
-                  Worked out from impact and urgency using your organization's matrix.
+                  Worked out from impact and urgency using your organization&apos;s matrix.
                   It cannot be set by hand here — support can adjust it later with a reason.
                 </p>
 

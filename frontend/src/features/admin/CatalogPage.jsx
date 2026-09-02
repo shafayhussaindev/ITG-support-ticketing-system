@@ -335,6 +335,90 @@ function Categories({ reference }) {
   );
 }
 
+/*
+  Declared at module scope on purpose. As a function nested inside Applications it
+  was re-created on every parent render, and React treats a new function as a new
+  component type: the form unmounted and remounted, and whatever the user had typed
+  vanished each time a query refetched behind it.
+*/
+function ApplicationForm({ application, reference, saving, onSave, onCancel }) {
+  const [form, setForm] = useState(() => (application
+    ? {
+        name: application.name,
+        code: application.code,
+        description: '',
+        vendor: application.vendor ?? '',
+        version: application.version ?? '',
+        owningTeamId: application.owningTeamId ?? '',
+        isBusinessCritical: application.isBusinessCritical,
+        isActive: application.isActive,
+      }
+    : BLANK_APPLICATION));
+
+  const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  return (
+    <form
+      className={s.form}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave({ ...form, owningTeamId: form.owningTeamId || null });
+      }}
+    >
+      <div className={s.formRow}>
+        <label className={s.field}>
+          <span className={s.label}>Name</span>
+          <input className={s.input} required value={form.name}
+                 onChange={(e) => set({ name: e.target.value })} />
+        </label>
+        <label className={s.field}>
+          <span className={s.label}>Code</span>
+          <input className={s.input} required maxLength={20} value={form.code}
+                 onChange={(e) => set({ code: e.target.value.toUpperCase() })} />
+        </label>
+      </div>
+
+      <div className={s.formRow}>
+        <label className={s.field}>
+          <span className={s.label}>Vendor</span>
+          <input className={s.input} value={form.vendor}
+                 onChange={(e) => set({ vendor: e.target.value })} />
+        </label>
+        <label className={s.field}>
+          <span className={s.label}>Version</span>
+          <input className={s.input} value={form.version}
+                 onChange={(e) => set({ version: e.target.value })} />
+        </label>
+        <label className={s.field}>
+          <span className={s.label}>Owning team</span>
+          <select className={s.select} value={form.owningTeamId}
+                  onChange={(e) => set({ owningTeamId: e.target.value })}>
+            <option value="">None</option>
+            {reference.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <label className={s.checkbox}>
+        <input type="checkbox" checked={form.isBusinessCritical}
+               onChange={(e) => set({ isBusinessCritical: e.target.checked })} />
+        Business critical
+      </label>
+
+      <label className={s.checkbox}>
+        <input type="checkbox" checked={form.isActive}
+               onChange={(e) => set({ isActive: e.target.checked })} />
+        Active
+      </label>
+
+      <div className={s.formActions}>
+        <Button type="button" size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button type="submit" size="sm" loading={saving}>Save</Button>
+      </div>
+    </form>
+  );
+}
+
 function Applications({ reference }) {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -372,84 +456,6 @@ function Applications({ reference }) {
   if (isError) return <ErrorState error={error} onRetry={refetch} title="Could not load applications" />;
 
   const editing = data.find((a) => a.id === editingId);
-
-  function ApplicationForm({ application, onSave, onCancel }) {
-    const [form, setForm] = useState(() => (application
-      ? {
-          name: application.name,
-          code: application.code,
-          description: '',
-          vendor: application.vendor ?? '',
-          version: application.version ?? '',
-          owningTeamId: application.owningTeamId ?? '',
-          isBusinessCritical: application.isBusinessCritical,
-          isActive: application.isActive,
-        }
-      : BLANK_APPLICATION));
-
-    const set = (patch) => setForm((f) => ({ ...f, ...patch }));
-
-    return (
-      <form
-        className={s.form}
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSave({ ...form, owningTeamId: form.owningTeamId || null });
-        }}
-      >
-        <div className={s.formRow}>
-          <label className={s.field}>
-            <span className={s.label}>Name</span>
-            <input className={s.input} required value={form.name}
-                   onChange={(e) => set({ name: e.target.value })} />
-          </label>
-          <label className={s.field}>
-            <span className={s.label}>Code</span>
-            <input className={s.input} required maxLength={20} value={form.code}
-                   onChange={(e) => set({ code: e.target.value.toUpperCase() })} />
-          </label>
-        </div>
-
-        <div className={s.formRow}>
-          <label className={s.field}>
-            <span className={s.label}>Vendor</span>
-            <input className={s.input} value={form.vendor}
-                   onChange={(e) => set({ vendor: e.target.value })} />
-          </label>
-          <label className={s.field}>
-            <span className={s.label}>Version</span>
-            <input className={s.input} value={form.version}
-                   onChange={(e) => set({ version: e.target.value })} />
-          </label>
-          <label className={s.field}>
-            <span className={s.label}>Owning team</span>
-            <select className={s.select} value={form.owningTeamId}
-                    onChange={(e) => set({ owningTeamId: e.target.value })}>
-              <option value="">None</option>
-              {reference.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </label>
-        </div>
-
-        <label className={s.checkbox}>
-          <input type="checkbox" checked={form.isBusinessCritical}
-                 onChange={(e) => set({ isBusinessCritical: e.target.checked })} />
-          Business critical
-        </label>
-
-        <label className={s.checkbox}>
-          <input type="checkbox" checked={form.isActive}
-                 onChange={(e) => set({ isActive: e.target.checked })} />
-          Active
-        </label>
-
-        <div className={s.formActions}>
-          <Button type="button" size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
-          <Button type="submit" size="sm" loading={save.isPending}>Save</Button>
-        </div>
-      </form>
-    );
-  }
 
   return (
     <div className={s.stack}>
@@ -518,6 +524,8 @@ function Applications({ reference }) {
           <CardHeader title="New application" />
           <CardBody>
             <ApplicationForm
+              reference={reference}
+              saving={save.isPending}
               onCancel={() => setCreating(false)}
               onSave={(body) => save.mutate({ id: null, body })}
             />
@@ -530,6 +538,8 @@ function Applications({ reference }) {
           <CardHeader title={`Edit ${editing.name}`} />
           <CardBody>
             <ApplicationForm
+              reference={reference}
+              saving={save.isPending}
               key={editing.id}
               application={editing}
               onCancel={() => setEditingId(null)}
