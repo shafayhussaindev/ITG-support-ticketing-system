@@ -86,6 +86,55 @@ describe('LoginPage', () => {
     expect(alert).not.toHaveTextContent(/no account/i);
   });
 
+  it('puts a server-side validation refusal on the field, not on the password', async () => {
+    // The server validates more strictly than the form. When it refuses the email,
+    // saying "email or password is incorrect" sends somebody off to reset a password
+    // that was never the problem. This is exactly what happened on the first deploy.
+    authService.login.mockRejectedValue(
+      new ApiError({
+        status: 400,
+        code: 'validation_failed',
+        detail: 'Correct the highlighted fields and try again.',
+        fieldErrors: { Email: ["'Email' is not a valid email address."] },
+      }),
+    );
+
+    const user = userEvent.setup();
+    const submit = await renderLogin();
+
+    await user.type(screen.getByLabelText(/email/i), 'someone@itg.test');
+    await user.type(screen.getByLabelText(/password/i), 'AnyPassword1!');
+    await user.click(submit);
+
+    // Two alerts are correct here: the form-level summary and the field's own
+    // message. Neither may claim the password was wrong.
+    const alerts = await screen.findAllByRole('alert');
+    for (const alert of alerts) {
+      expect(alert).not.toHaveTextContent(/password is incorrect/i);
+    }
+    expect(screen.getByLabelText(/email/i)).toHaveAccessibleDescription(/not a valid email address/i);
+  });
+
+  it('does not blame the password for a failure that never reached the credential check', async () => {
+    // A 404 from a wrong API address, a 502 from a proxy: none of these mean the
+    // password was wrong, and that message is the one answer guaranteed to mislead.
+    authService.login.mockRejectedValue(
+      new ApiError({ status: 404, code: 'http_404', detail: 'Not found.', correlationId: 'abc-123' }),
+    );
+
+    const user = userEvent.setup();
+    const submit = await renderLogin();
+
+    await user.type(screen.getByLabelText(/email/i), 'someone@itg.test');
+    await user.type(screen.getByLabelText(/password/i), 'AnyPassword1!');
+    await user.click(submit);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).not.toHaveTextContent(/password is incorrect/i);
+    expect(alert).toHaveTextContent(/HTTP 404/);
+    expect(alert).toHaveTextContent(/abc-123/);
+  });
+
   it('reveals the verification code field only when the server asks for it', async () => {
     authService.login.mockRejectedValue(
       new ApiError({ status: 401, code: 'two_factor_required', detail: 'A code is required.' }),

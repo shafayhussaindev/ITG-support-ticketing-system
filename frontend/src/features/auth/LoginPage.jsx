@@ -57,6 +57,7 @@ export function LoginPage() {
     register,
     handleSubmit,
     setFocus,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
@@ -115,10 +116,49 @@ export function LoginPage() {
           setFormError({ tone: 'error', message: 'Cannot reach the server. Check that the API is running.' });
           break;
 
-        default:
+        case 'validation_failed': {
+          // The server checks the request more strictly than this form does, so a
+          // value that passed here can still be refused there. Put its message on
+          // the field it is about; that is a different problem from a wrong password
+          // and telling somebody their password is wrong when it is their email
+          // that was refused sends them to reset a password that was never the issue.
+          const fields = error.fieldErrors ?? {};
+          let placed = false;
+          for (const [name, messages] of Object.entries(fields)) {
+            const key = name.charAt(0).toLowerCase() + name.slice(1);
+            if (key in schema.shape) {
+              setError(key, { type: 'server', message: messages[0] });
+              placed = true;
+            }
+          }
+          setFormError({
+            tone: 'error',
+            message: placed
+              ? 'Check the highlighted field and try again.'
+              : error.detail ?? 'The sign-in request was refused. Check what you entered and try again.',
+          });
+          break;
+        }
+
+        case 'invalid_credentials':
+        case 'http_401':
           // Deliberately generic: the server does not distinguish an unknown email
           // from a wrong password, and neither should this screen.
           setFormError({ tone: 'error', message: 'Email or password is incorrect.' });
+          break;
+
+        default:
+          // Anything else did not come from the credential check at all: a 404 from a
+          // wrong API address, a 502 from a proxy, a 500 from the server. Reporting
+          // those as a bad password is the one message guaranteed to be wrong, and
+          // it sends somebody chasing their password while the real fault sits
+          // untouched. Say what happened and give them the number to quote.
+          setFormError({
+            tone: 'error',
+            message: `Sign-in failed (${error.status ? `HTTP ${error.status}` : error.code}). `
+              + `${error.detail ?? 'The server did not answer the way this application expects.'}`
+              + `${error.correlationId ? ` Reference ${error.correlationId}.` : ''}`,
+          });
       }
     }
   }
