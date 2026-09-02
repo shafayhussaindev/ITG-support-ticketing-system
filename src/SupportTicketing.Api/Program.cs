@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -272,6 +272,37 @@ builder.Services.AddSwaggerGen(options =>
     });
 
     options.EnableAnnotations();
+
+    // Two contracts may legitimately share a short name. Auth and Admin both expose a
+    // TeamMembershipResponse and they are deliberately different shapes: only the admin
+    // view carries CapacityWeight, because a user looking at their own profile has no
+    // business seeing their routing weight.
+    //
+    // Swashbuckle keys every schema by short name, so that collision did not degrade
+    // the document, it failed the whole generation. /swagger/v1/swagger.json returned
+    // 500 and Swagger UI showed "Failed to load API definition" with no working
+    // endpoint at all, while the API itself served every request normally.
+    //
+    // Only genuinely ambiguous names are qualified, so the rest of the document keeps
+    // reading as the type names people recognise.
+    var ambiguousTypeNames = typeof(SupportTicketing.Contracts.Auth.AuthResponse).Assembly
+        .GetExportedTypes()
+        .GroupBy(type => type.Name, StringComparer.Ordinal)
+        .Where(group => group.Count() > 1)
+        .Select(group => group.Key)
+        .ToHashSet(StringComparer.Ordinal);
+
+    // Mirrors Swashbuckle's own default, including how it flattens generics, so that
+    // every unambiguous type is named exactly as it was before.
+    static string DefaultSchemaId(Type type) =>
+        type.IsConstructedGenericType
+            ? type.GetGenericArguments().Select(DefaultSchemaId).Aggregate(string.Concat)
+              + type.Name.Split('`')[0]
+            : type.Name.Replace("[]", "Array");
+
+    options.CustomSchemaIds(type => ambiguousTypeNames.Contains(type.Name)
+        ? type.Namespace?.Split('.').Last() + DefaultSchemaId(type)
+        : DefaultSchemaId(type));
 });
 
 builder.Services.AddHealthChecks()
