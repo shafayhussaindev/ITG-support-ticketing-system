@@ -1,8 +1,23 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <UserSecretsId>supportticketing-api-2026</UserSecretsId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Development settings do not belong on a production server. The file names a
+      local database, localhost CORS origins, and a plain-text password for the seven
+      role test accounts. Production ignores it, and the application refuses to start
+      if the seeders are enabled outside Development, so nothing reads it there — but
+      it would still be sitting on the server, and one ASPNETCORE_ENVIRONMENT set to
+      Development is all that stands between that file and seven accounts whose
+      password is in source control.
+
+      It still copies to the build output, so `dotnet run` locally is unaffected.
+    -->
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SupportTicketing.Application\SupportTicketing.Application.csproj" />

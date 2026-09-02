@@ -45,3 +45,6 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# Publish output for IIS. Built artefact, never source.
+publish-iis/
